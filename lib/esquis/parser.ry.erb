@@ -79,9 +79,9 @@ rule
     <%= repeat0 'statement' %>
 
     if_stmt:
-        'if' '(' expression ')' block_or_stmt
+        'if' expression block_or_stmt
         opt_else
-      { Ast::If.new(val[2], val[4], val[5]) }
+      { Ast::If.new(val[1], val[2], val[3]) }
 
     block_or_stmt:
         '{' opt_statements '}'

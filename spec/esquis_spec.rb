@@ -4,13 +4,13 @@ MANDEL = <<EOD
 extern i32 putchar(i32);
 
 def printdensity(d) {
-  if (d > 8) {
+  if d > 8 {
     putchar(32);  // ' '
   }
-  else if (d > 4) {
+  else if d > 4 {
     putchar(46);  // '.'
   }
-  else if (d > 2) {
+  else if d > 2 {
     putchar(43);  // '+'
   }
   else {
