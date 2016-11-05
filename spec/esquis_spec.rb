@@ -3,7 +3,7 @@ require 'spec_helper'
 MANDEL = <<EOD
 extern i32 putchar(i32);
 
-func printdensity(d) {
+def printdensity(d) {
   if (d > 8) {
     putchar(32);  // ' '
   }
@@ -18,7 +18,7 @@ func printdensity(d) {
   }
 }
 
-func mandleconverger(real, imag, iters, creal, cimag) {
+def mandleconverger(real, imag, iters, creal, cimag) {
   if (iters > 255 || (real*real + imag*imag > 4)) {
     iters;
   }
@@ -29,11 +29,11 @@ func mandleconverger(real, imag, iters, creal, cimag) {
   }
 }
 
-func mandleconverge(real, imag) {
+def mandleconverge(real, imag) {
   mandleconverger(real, imag, 0, real, imag);
 }
 
-func mandelhelp(xmin, xmax, xstep, ymin, ymax, ystep) {
+def mandelhelp(xmin, xmax, xstep, ymin, ymax, ystep) {
   for (y ; ymin ... ymax ; ystep) {
     for (x ; xmin ... xmax ; xstep) {
        printdensity(mandleconverge(x,y));
@@ -42,7 +42,7 @@ func mandelhelp(xmin, xmax, xstep, ymin, ymax, ystep) {
   }
 }
 
-func mandel(realstart, imagstart, realmag, imagmag) {
+def mandel(realstart, imagstart, realmag, imagmag) {
   mandelhelp(realstart, realstart+realmag*78, realmag,
              imagstart, imagstart+imagmag*40, imagmag);
 }
@@ -70,7 +70,7 @@ describe Esquis do
     it 'defun' do
       src = <<-EOD
         extern i32 putchar(i32);
-        func add(x, y){ return x + y; }
+        def add(x, y){ return x + y; }
         putchar(add(60, 5));
       EOD
       expect(Esquis.run(src)).to eq("A")

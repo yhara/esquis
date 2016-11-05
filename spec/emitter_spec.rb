@@ -41,7 +41,7 @@ describe "ll emitter:" do
   describe "func definition" do
     it "should define a function" do
       ll = to_ll(<<~EOD)
-        func foo(x, y) { return x; }
+        def foo(x, y) { return x; }
         foo(123, 456);
       EOD
       expect(ll).to eq(<<~EOD)
@@ -140,7 +140,7 @@ describe "ll emitter:" do
     describe "-" do
       it "should flip the sign" do
         ll = to_ll(<<~EOD)
-          func foo(x) { return -x; }
+          def foo(x) { return -x; }
           foo(3);
         EOD
         expect(ll).to eq(<<~EOD)
