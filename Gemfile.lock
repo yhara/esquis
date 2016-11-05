@@ -10,7 +10,7 @@ GEM
   specs:
     diff-lcs (1.2.5)
     racc (1.4.14)
-    rake (10.4.2)
+    rake (11.3.0)
     rspec (3.5.0)
       rspec-core (~> 3.5.0)
       rspec-expectations (~> 3.5.0)
@@ -32,7 +32,7 @@ PLATFORMS
 DEPENDENCIES
   bundler (~> 1.13)
   esquis!
-  rake (~> 10.0)
+  rake
   rspec (~> 3.0)
 
 BUNDLED WITH
