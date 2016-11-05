@@ -1,0 +1,187 @@
+# vim: set ft=ruby
+<%
+  def camel_case(name)
+    name.split('_').map(&:capitalize).join
+  end
+
+  def repeat1(name, sep: nil)
+    <<-EOD
+    #{name}s : 
+        #{name}
+        { [val[0]] }
+      | #{name}s #{sep} #{name}
+        { val[0].push(val[#{sep ? 2 : 1}]) }
+    EOD
+  end
+
+  def repeat0(name, sep: nil)
+    <<-EOD
+    opt_#{name}s :
+        /* NONE */ 
+      { [] }
+      | #{name}s
+      { val[0] }
+
+    #{repeat1(name, sep: sep)}
+    EOD
+  end
+%>
+class Esquis::Parser
+  options no_result_var
+  token IDENT FLOAT INTEGER
+
+  prechigh
+    right UMINUS
+    left '*' '/' '%'
+    left '+' '-'
+    left '>' '>=' '<' '<='
+    nonassoc '==' '!='
+    left '&&'
+    left '||'
+  preclow
+
+rule
+    program :
+      opt_definitions
+      opt_statements
+      { Ast::Program.new(val[0],
+          Ast::Main.new(val[1])) }
+
+    definition :
+        defun
+      | extern
+    <%= repeat0 'definition' %>
+
+    defun:
+      'func' IDENT '(' opt_params ')' '{'
+         opt_statements
+      '}'
+      { Ast::Defun.new(val[1], val[3], val[6]) }
+
+    param : 
+      IDENT
+    <%= repeat0 'param', sep: "','" %>
+
+    extern:
+        'extern' IDENT IDENT '(' opt_param_types ')' ';'
+      { Ast::Extern.new(val[1], val[2], val[4]) }
+
+    param_type :
+        IDENT
+    <%= repeat0 'param_type', sep: "','" %>
+
+    statement:
+        if_stmt
+      | for_stmt
+      | return_stmt
+      | expression ';'
+      { Ast::ExprStmt.new(val[0]) }
+    <%= repeat0 'statement' %>
+
+    if_stmt:
+        'if' '(' expression ')' block_or_stmt
+        opt_else
+      { Ast::If.new(val[2], val[4], val[5]) }
+
+    block_or_stmt:
+        '{' opt_statements '}'
+      { val[1] }
+      | statement
+      { [val[0]] }
+
+    opt_else:
+        /* NONE */
+      { [] }
+      | 'else' block_or_stmt
+      { val[1] }
+
+    for_stmt:
+        'for' '(' IDENT ';' expression '...' expression ';' expression ')' block_or_stmt
+      { Ast::For.new(val[2], val[4], val[6], val[8], val[10]) }
+
+    return_stmt:
+        'return' expression ';'
+      { Ast::Return.new(val[1]) }
+
+    expression:
+        fcall
+      | varref
+      | literal
+
+      <% ops = %w(+ - * / % > < >= <= == != && ||) %>
+      <% ops.each do |op| %>
+      | expression '<%= op %>' expression
+      { Ast::BinExpr.new("<%= op %>", val[0], val[2]) }
+      <% end %>
+
+      | '-' expression =UMINUS
+      { Ast::UnaryExpr.new("-", val[1]) }
+
+      | '(' expression ')'
+      { val[1] }
+    <%= repeat0 'expression' %>
+
+    fcall:
+        IDENT '(' opt_args ')'
+      { Ast::FunCall.new(val[0], val[2]) }
+
+    arg:
+        expression
+    <%= repeat0 'arg', sep: "','" %>
+
+    varref:
+      IDENT
+      { Ast::VarRef.new(val[0]) }
+
+    literal:
+        FLOAT
+      { Ast::Literal.new(val[0]) }
+      | INTEGER
+      { Ast::Literal.new(val[0]) }
+end
+
+---- header
+require 'strscan'
+
+---- inner
+KEYWORDS = /extern|func|if|else|for|return/
+
+SYMBOLS = /(\.\.\.)|(>=)|(<=)|(==)|(!=)|(&&)|(\|\|)|[\<\>\(\)\{\}\.\+\-\*\/\%\=\,;]/
+
+def parse(str)
+  @yydebug = true
+
+  @q = []
+  s = StringScanner.new(str)
+  until s.empty?
+    case
+    when s.scan(/\s+/)
+      # skip whitespace
+    when s.scan(%r{//.*\n})
+      # skip comment
+    when m = s.scan(SYMBOLS)
+      @q << [m, m]
+    when m = s.scan(/^#extern (.+)\n/)
+      @q << [:EXTERN, s[1]]
+    when m = s.scan(/\d+\.\d+/)
+      @q << [:FLOAT, m.to_f]
+    when m = s.scan(/\d+/)
+      @q << [:INTEGER, m.to_i]
+    when m = s.scan(KEYWORDS)
+      @q << [m, m.to_sym]
+    when m = s.scan(/[\w_]+/)
+      @q << [:IDENT, m]
+    else
+      raise "no match: #{s.inspect}"
+    end
+  end
+
+  do_parse
+rescue 
+  #p q: @q
+  raise
+end
+
+def next_token
+  @q.shift
+end
