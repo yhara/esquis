@@ -19,18 +19,18 @@ def printdensity(d) {
 }
 
 def mandleconverger(real, imag, iters, creal, cimag) {
-  if (iters > 255 || (real*real + imag*imag > 4)) {
-    iters;
+  if iters > 255 || (real*real + imag*imag > 4) {
+    return iters;
   }
   else {
-    mandleconverger(real*real - imag*imag + creal,
-                    2*real*imag + cimag,
-                    iters+1, creal, cimag);
+    return mandleconverger(real*real - imag*imag + creal,
+                           2*real*imag + cimag,
+                           iters+1, creal, cimag);
   }
 }
 
 def mandleconverge(real, imag) {
-  mandleconverger(real, imag, 0, real, imag);
+  return mandleconverger(real, imag, 0, real, imag);
 }
 
 def mandelhelp(xmin, xmax, xstep, ymin, ymax, ystep) {
@@ -43,8 +43,8 @@ def mandelhelp(xmin, xmax, xstep, ymin, ymax, ystep) {
 }
 
 def mandel(realstart, imagstart, realmag, imagmag) {
-  mandelhelp(realstart, realstart+realmag*78, realmag,
-             imagstart, imagstart+imagmag*40, imagmag);
+  return mandelhelp(realstart, realstart+realmag*78, realmag,
+                    imagstart, imagstart+imagmag*40, imagmag);
 }
 
 mandel(-2.3, -1.3, 0.05, 0.07);
