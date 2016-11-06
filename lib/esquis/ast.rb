@@ -61,7 +61,7 @@ module Esquis
 
       def check_duplicated_param
         @funcs.each_value do |x|
-          dups = find_duplication(x.param_names)
+          dups = find_duplication(x.params.map(&:name))
           if dups.any?
             raise "duplicated param name #{dups.join ','} of func #{x.name}"
           end
@@ -108,10 +108,10 @@ module Esquis
     end
 
     class Defun < Node
-      props :name, :param_names, :body_stmts
+      props :name, :params, :body_stmts
 
       def arity
-        param_names.length
+        params.length
       end
 
       def param_types
@@ -123,16 +123,20 @@ module Esquis
       end
 
       def to_ll(prog)
-        env = param_names.to_set
-        params = param_names.map{|x| "double %#{x}"}.join(", ")
+        env = params.map(&:name).to_set
+        param_list = params.map{|x| "double %#{x.name}"}.join(", ")
 
         ll = []
-        ll << "define double @#{name}(#{params}) {"
+        ll << "define double @#{name}(#{param_list}) {"
         ll.concat body_stmts.flat_map{|x| x.to_ll(prog, env)}
         ll << "  ret double 0.0"
         ll << "}"
         return ll
       end
+    end
+
+    class Param < Node
+      props :name, :type_name
     end
 
     class Extern < Node

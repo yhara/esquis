@@ -60,6 +60,7 @@ rule
 
     param : 
       IDENT ':' IDENT
+      { Ast::Param.new(val[0], val[2]) }
     <%= repeat0 'param', sep: "','" %>
 
     extern:
