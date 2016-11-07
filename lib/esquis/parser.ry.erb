@@ -147,7 +147,9 @@ require 'strscan'
 ---- inner
 KEYWORDS = /extern|def|if|else|for|return/
 
-SYMBOLS = /(\.\.\.)|(>=)|(<=)|(==)|(!=)|(&&)|(\|\|)|[\<\>\(\)\{\}\.\+\-\*\/\%\=\,\;\:]/
+SYMBOLS = Regexp.union(*"
+... >= <= == != && || < > ( ) { } . + - * / % = , ; :
+".split.map{|x| Regexp.new(Regexp.quote(x))})
 
 def parse(str)
   @yydebug = true
