@@ -53,10 +53,10 @@ rule
     <%= repeat0 'definition' %>
 
     defun:
-      'def' IDENT '(' opt_params ')' '{'
+      'def' IDENT '(' opt_params ')' '->' IDENT '{'
          opt_statements
       '}'
-      { Ast::Defun.new(val[1], val[3], val[6]) }
+      { Ast::Defun.new(val[1], val[3], val[6], val[8]) }
 
     param : 
       IDENT ':' IDENT
@@ -148,7 +148,7 @@ require 'strscan'
 KEYWORDS = /extern|def|if|else|for|return/
 
 SYMBOLS = Regexp.union(*"
-... >= <= == != && || < > ( ) { } . + - * / % = , ; :
+... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :
 ".split.map{|x| Regexp.new(Regexp.quote(x))})
 
 def parse(str)

@@ -108,7 +108,7 @@ module Esquis
     end
 
     class Defun < Node
-      props :name, :params, :body_stmts
+      props :name, :params, :ret_type_name, :body_stmts
 
       def arity
         params.length
