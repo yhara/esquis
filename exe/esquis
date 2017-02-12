@@ -16,9 +16,11 @@ module Esquis
       return ll_path
     end
 
+    option "keep_files", type: :boolean, default: false, desc: "keep intermediate files"
     desc "exec FILE", "compile and run esquis script"
     def exec(es_path)
-      Esquis.run(File.read(es_path))
+      Esquis.run(File.read(es_path),
+                 src_path: options[:keep_files] ? es_path : nil)
     end
   end
 end
