@@ -9,7 +9,7 @@ require 'esquis/parser'
 module Esquis
   def self.compile(src)
     ast = Parser.new.parse(src)
-    return ast.to_ll
+    return ast.to_ll_str
   end
 
   def self.run(src)

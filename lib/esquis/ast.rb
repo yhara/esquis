@@ -54,7 +54,8 @@ module Esquis
       end
       attr_reader :funcs, :externs
 
-      def to_ll
+      # Return LLVM bitcode as String
+      def to_ll_str
         Node.reset
 
         lines = defs.flat_map{|x| x.to_ll(self)} +

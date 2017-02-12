@@ -3,7 +3,7 @@ require 'spec_helper'
 describe "ll emitter:" do
   def to_ll(src)
     ast = Esquis::Parser.new.parse(src)
-    ast.to_ll
+    ast.to_ll_str
   end
 
   describe "extern" do
