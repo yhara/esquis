@@ -18,8 +18,7 @@ module Esquis
 
     desc "exec FILE", "compile and run esquis script"
     def exec(es_path)
-      ll_path = compile(es_path)
-      system "lli", ll_path
+      Esquis.run(File.read(es_path))
     end
   end
 end

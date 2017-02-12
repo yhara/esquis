@@ -3,7 +3,7 @@ require 'spec_helper'
 describe "ll emitter:" do
   def to_ll(src)
     ast = Esquis::Parser.new.parse(src)
-    ast.to_ll_str
+    ast.to_ll_str(without_header: true)
   end
 
   describe "extern" do
@@ -14,6 +14,7 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           ret i32 0
         }
       EOD
@@ -29,6 +30,7 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           %reg1 = fptosi double 65.0 to i32
           %reg2 = call i32 @putchar(i32 %reg1)
           %reg3 = sitofp i32 %reg2 to double
@@ -46,6 +48,7 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         %"A" = type { i32 }
         define i32 @main() {
+          call void @GC_init()
           ret i32 0
         }
       EOD
@@ -64,6 +67,7 @@ describe "ll emitter:" do
           ret double 0.0
         }
         define i32 @main() {
+          call void @GC_init()
           %reg1 = call double @foo(double 123.0, double 456.0)
           ret i32 0
         }
@@ -82,6 +86,7 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           %reg1 = fcmp olt double 1.0, 2.0
           br i1 %reg1, label %Then1, label %EndIf1
         Then1:
@@ -107,6 +112,7 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           br label %For1
         For1:
           br label %Loop1
@@ -139,6 +145,7 @@ describe "ll emitter:" do
         expect(ll).to eq(<<~EOD)
           declare i32 @putchar(i32)
           define i32 @main() {
+            call void @GC_init()
             %reg1 = fadd double 60.0, 5.0
             %reg2 = fptosi double %reg1 to i32
             %reg3 = call i32 @putchar(i32 %reg2)
@@ -164,6 +171,7 @@ describe "ll emitter:" do
             ret double 0.0
           }
           define i32 @main() {
+            call void @GC_init()
             %reg2 = call double @foo(double 3.0)
             ret i32 0
           }

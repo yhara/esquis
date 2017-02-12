@@ -1,3 +1,5 @@
+require 'set'
+
 module Esquis
   class Ast
     class Node
@@ -55,15 +57,27 @@ module Esquis
       attr_reader :funcs, :externs
 
       # Return LLVM bitcode as String
-      def to_ll_str
+      # without_header: for testing
+      def to_ll_str(without_header: false)
         Node.reset
 
-        lines = defs.flat_map{|x| x.to_ll(self)} +
-                main.to_ll(self)
-        return lines.join("\n") + "\n"
+        header = (without_header ? [] : LL_HEADER)
+        return (header + to_ll).join("\n") + "\n"
       end
+      LL_HEADER = [
+        "declare void @GC_init()",
+        "declare i8* @GC_malloc(i64)",
+        "declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1)",
+      ]
 
       private
+
+      def to_ll
+        [
+          *defs.flat_map{|x| x.to_ll(self)},
+          *main.to_ll(self)
+        ]
+      end
 
       def check_duplicated_defun
         defuns = defs.select{|x| x.is_a?(Defun)}
@@ -115,6 +129,7 @@ module Esquis
       def to_ll(prog)
         [
           "define i32 @main() {",
+          "  call void @GC_init()",
           *stmts.map{|x| x.to_ll(prog, [])},
           "  ret i32 0",
           "}",
