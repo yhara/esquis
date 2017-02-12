@@ -121,6 +121,16 @@ module Esquis
       end
     end
 
+    class DefClass < Node
+      props :name, :defuns
+
+      def to_ll(prog)
+        [
+          "%\"#{name}\" = type { i32 }"
+        ]
+      end
+    end
+
     class Defun < Node
       props :name, :params, :ret_type_name, :body_stmts
 

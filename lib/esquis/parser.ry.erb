@@ -48,15 +48,23 @@ rule
           Ast::Main.new(val[1])) }
 
     definition :
-        defun
+        defclass
+      | defun
       | extern
     <%= repeat0 'definition' %>
+
+    defclass:
+      'class' IDENT
+        opt_defuns
+      'end'
+      { Ast::DefClass.new(val[1], val[2]) }
 
     defun:
       'def' IDENT '(' opt_params ')' '->' IDENT '{'
          opt_statements
       '}'
       { Ast::Defun.new(val[1], val[3], val[6], val[8]) }
+    <%= repeat0 'defun' %>
 
     param : 
       IDENT ':' IDENT
@@ -145,7 +153,7 @@ end
 require 'strscan'
 
 ---- inner
-KEYWORDS = /extern|def|if|else|for|return/
+KEYWORDS = /extern|class|end|def|if|else|for|return/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :

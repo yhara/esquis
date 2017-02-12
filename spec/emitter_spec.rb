@@ -38,6 +38,20 @@ describe "ll emitter:" do
     end
   end
 
+  describe "class definition" do
+    it "should deifne a struct type" do
+      ll = to_ll(<<~EOD)
+        class A end
+      EOD
+      expect(ll).to eq(<<~EOD)
+        %"A" = type { i32 }
+        define i32 @main() {
+          ret i32 0
+        }
+      EOD
+    end
+  end
+
   describe "func definition" do
     it "should define a function" do
       ll = to_ll(<<~EOD)
