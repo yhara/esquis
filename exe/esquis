@@ -4,7 +4,7 @@ require 'esquis'
 
 module Esquis
   class Cli < Thor
-    desc "compile FILE", "compile and run esquis script"
+    desc "compile FILE", "compile esquis script into .ll"
     def compile(es_path)
       ll_path = if es_path.end_with?(".es")
                   es_path.sub(/\.es\z/, ".ll")
