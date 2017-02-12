@@ -22,8 +22,21 @@ module Esquis
       def newfor
         return (@@for += 1)
       end
+
+      # Return LLVM bitcode as [String]
+      # @param prog [Program]
+      # @param env [Set]
+      # def to_ll(prog, env)
+      # end
+
+      # Return LLVM bitcode as [String] and the name of the register
+      # which contains the value of this node
+      # def to_ll_r(prog, env)
+      # end
     end
 
+    # The whole program
+    # Consists of definitions(defs) and the rest(main)
     class Program < Node
       props :defs, :main
 
@@ -94,6 +107,7 @@ module Esquis
       end
     end
 
+    # Statements written in the toplevel
     class Main < Node
       props :stmts
 
