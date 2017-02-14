@@ -5,6 +5,16 @@ module Esquis
     class Node
       extend Props
 
+      # Return duplicated elements in ary
+      # Return [] if none
+      def self.find_duplication(ary)
+        ct = Hash.new{|h, k| h[k] = 0}
+        ary.each do |x|
+          ct[x] += 1
+        end
+        return ct.select{|k, v| v > 1}.map{|k, v| k}
+      end
+
       def self.reset
         @@reg = 0
         @@if = 0
@@ -51,7 +61,6 @@ module Esquis
           .to_h
 
         check_duplicated_defun
-        check_duplicated_param
         check_misplaced_return(main.stmts)
       end
       attr_reader :funcs, :externs
@@ -81,18 +90,9 @@ module Esquis
 
       def check_duplicated_defun
         defuns = defs.select{|x| x.is_a?(Defun)}
-        dups = find_duplication(defuns.map(&:name))
+        dups = Node.find_duplication(defuns.map(&:name))
         if dups.any?
           raise "duplicated definition of func #{dups.join ','}"
-        end
-      end
-
-      def check_duplicated_param
-        @funcs.each_value do |x|
-          dups = find_duplication(x.params.map(&:name))
-          if dups.any?
-            raise "duplicated param name #{dups.join ','} of func #{x.name}"
-          end
         end
       end
 
@@ -109,16 +109,6 @@ module Esquis
             raise "cannot return from main"
           end
         end
-      end
-
-      # Return duplicated elements in ary
-      # Return [] if none
-      def find_duplication(ary)
-        ct = Hash.new{|h, k| h[k] = 0}
-        ary.each do |x|
-          ct[x] += 1
-        end
-        return ct.select{|k, v| v > 1}.map{|k, v| k}
       end
     end
 
@@ -149,6 +139,12 @@ module Esquis
 
     class Defun < Node
       props :name, :params, :ret_type_name, :body_stmts
+
+      def init
+        if (dups = Node.find_duplication(params.map(&:name))).any?
+          raise "duplicated param name #{dups.join ','} of func #{name}"
+        end
+      end
 
       def arity
         params.length
