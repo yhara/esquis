@@ -61,7 +61,6 @@ module Esquis
           .to_h
 
         check_duplicated_defun
-        check_misplaced_return(main.stmts)
       end
       attr_reader :funcs, :externs
 
@@ -95,6 +94,27 @@ module Esquis
           raise "duplicated definition of func #{dups.join ','}"
         end
       end
+    end
+
+    # Statements written in the toplevel
+    class Main < Node
+      props :stmts
+
+      def init
+        check_misplaced_return(stmts)
+      end
+
+      def to_ll(prog)
+        [
+          "define i32 @main() {",
+          "  call void @GC_init()",
+          *stmts.map{|x| x.to_ll(prog, [])},
+          "  ret i32 0",
+          "}",
+        ]
+      end
+      
+      private
 
       # raise if there is a `return` in main
       def check_misplaced_return(stmts)
@@ -109,21 +129,6 @@ module Esquis
             raise "cannot return from main"
           end
         end
-      end
-    end
-
-    # Statements written in the toplevel
-    class Main < Node
-      props :stmts
-
-      def to_ll(prog)
-        [
-          "define i32 @main() {",
-          "  call void @GC_init()",
-          *stmts.map{|x| x.to_ll(prog, [])},
-          "  ret i32 0",
-          "}",
-        ]
       end
     end
 
