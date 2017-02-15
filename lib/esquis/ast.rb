@@ -155,7 +155,7 @@ module Esquis
         params.length
       end
 
-      def param_types
+      def param_type_names
         Array.new(arity, "double")
       end
 
@@ -181,15 +181,15 @@ module Esquis
     end
 
     class Extern < Node
-      props :ret_type, :name, :param_types
+      props :ret_type, :name, :param_type_names
 
       def arity
-        param_types.length
+        param_type_names.length
       end
 
       def to_ll(prog)
         [
-           "declare #{@ret_type} @#{@name}(#{@param_types.join ','})"
+           "declare #{@ret_type} @#{@name}(#{@param_type_names.join ','})"
         ]
       end
     end
@@ -338,7 +338,7 @@ module Esquis
         ll = []
         args_and_types = []
         @args.map{|x| x.to_ll_r(prog, env)}.each.with_index do |(arg_ll, arg_r), i|
-          type = target.param_types[i]
+          type = target.param_type_names[i]
           ll.concat(arg_ll)
           case type
           when "i32"
