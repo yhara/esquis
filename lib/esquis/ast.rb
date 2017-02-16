@@ -44,12 +44,12 @@ module Esquis
       # Return LLVM bitcode as [String]
       # @param prog [Program]
       # @param env [Set]
-      # def to_ll(env)
+      # def to_ll
       # end
 
       # Return LLVM bitcode as [String] and the name of the register
       # which contains the value of this node
-      # def to_ll_r(env)
+      # def to_ll_r
       # end
 
       # @param env[Hash<String, Type>]
@@ -112,8 +112,8 @@ module Esquis
 
       def to_ll
         [
-          *defs.flat_map{|x| x.to_ll(self)},
-          *main.to_ll(self)
+          *defs.flat_map{|x| x.to_ll},
+          *main.to_ll
         ]
       end
 
@@ -142,11 +142,11 @@ module Esquis
         end
       end
 
-      def to_ll(prog)
+      def to_ll
         [
           "define i32 @main() {",
           "  call void @GC_init()",
-          *stmts.map{|x| x.to_ll([])},
+          *stmts.map{|x| x.to_ll},
           "  ret i32 0",
           "}",
         ]
@@ -180,7 +180,7 @@ module Esquis
         end
       end
 
-      def to_ll(prog)
+      def to_ll
         [
           "%\"#{name}\" = type { i32 }"
         ]
@@ -208,13 +208,13 @@ module Esquis
         end
       end
 
-      def to_ll(prog)
+      def to_ll
         env = params.map(&:name).to_set
         param_list = params.map{|x| "double %#{x.name}"}.join(", ")
 
         ll = []
         ll << "define double @#{name}(#{param_list}) {"
-        ll.concat body_stmts.flat_map{|x| x.to_ll(env)}
+        ll.concat body_stmts.flat_map{|x| x.to_ll}
         ll << "  ret double 0.0"
         ll << "}"
         return ll
@@ -235,7 +235,7 @@ module Esquis
         end
       end
 
-      def to_ll(prog)
+      def to_ll
         [
            "declare #{@ret_type_name} @#{@name}(#{@param_type_names.join ','})"
         ]
@@ -253,11 +253,11 @@ module Esquis
         end
       end
 
-      def to_ll(env)
+      def to_ll
         i = newif
-        cond_ll, cond_r = @cond_expr.to_ll_r(env)
-        then_ll = @then_stmts.flat_map{|x| x.to_ll(env)}
-        else_ll = @else_stmts.flat_map{|x| x.to_ll(env)}
+        cond_ll, cond_r = @cond_expr.to_ll_r
+        then_ll = @then_stmts.flat_map{|x| x.to_ll}
+        else_ll = @else_stmts.flat_map{|x| x.to_ll}
 
         ll = []
         ll.concat cond_ll
@@ -291,11 +291,11 @@ module Esquis
         end
       end
 
-      def to_ll(env)
-        begin_ll, begin_r = begin_expr.to_ll_r(env)
-        end_ll, end_r = end_expr.to_ll_r(env)
-        step_ll, step_r = step_expr.to_ll_r(env)
-        body_ll = body_stmts.flat_map{|x| x.to_ll(env + [varname])}
+      def to_ll
+        begin_ll, begin_r = begin_expr.to_ll_r
+        end_ll, end_r = end_expr.to_ll_r
+        step_ll, step_r = step_expr.to_ll_r
+        body_ll = body_stmts.flat_map{|x| x.to_ll}
 
         i = newfor
         ll = []
@@ -334,8 +334,8 @@ module Esquis
         end
       end
 
-      def to_ll(env)
-        expr_ll, expr_r = expr.to_ll_r(env)
+      def to_ll
+        expr_ll, expr_r = expr.to_ll_r
 
         ll = []
         ll.concat expr_ll
@@ -354,8 +354,8 @@ module Esquis
         end
       end
 
-      def to_ll(env)
-        ll, r = @expr.to_ll_r(env)
+      def to_ll
+        ll, r = @expr.to_ll_r
         return ll
       end
     end
@@ -388,9 +388,9 @@ module Esquis
         end
       end
 
-      def to_ll_r(env)
-        ll1, r1 = @left_expr.to_ll_r(env)
-        ll2, r2 = @right_expr.to_ll_r(env)
+      def to_ll_r
+        ll1, r1 = @left_expr.to_ll_r
+        ll2, r2 = @right_expr.to_ll_r
         ope = BINOPS[@op] or raise "op #{@op} not implemented yet"
 
         ll = ll1 + ll2
@@ -410,8 +410,8 @@ module Esquis
         end
       end
 
-      def to_ll_r(env)
-        expr_ll, expr_r = expr.to_ll_r(env)
+      def to_ll_r
+        expr_ll, expr_r = expr.to_ll_r
 
         r = newreg
         ll = []
@@ -433,7 +433,7 @@ module Esquis
         end
       end
 
-      def to_ll_r(env)
+      def to_ll_r
         TODO
       end
     end
@@ -452,10 +452,10 @@ module Esquis
         end
       end
 
-      def to_ll_r(env)
+      def to_ll_r
         ll = []
         args_and_types = []
-        @args.map{|x| x.to_ll_r(env)}.each.with_index do |(arg_ll, arg_r), i|
+        @args.map{|x| x.to_ll_r}.each.with_index do |(arg_ll, arg_r), i|
           type = @func.ty.arg_types[i]
           ll.concat(arg_ll)
           case type
@@ -503,10 +503,7 @@ module Esquis
         end
       end
 
-      def to_ll_r(env)
-        if !env.include?(name)
-          raise "undefined variable #{name}"
-        end
+      def to_ll_r
         return [], "%#{name}"
       end
     end
@@ -524,7 +521,7 @@ module Esquis
         end
       end
 
-      def to_ll_r(env)
+      def to_ll_r
         case @value
         when Float
           return [], @value.to_s
