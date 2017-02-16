@@ -172,6 +172,11 @@ module Esquis
 
     class DefClass < Node
       props :name, :defuns
+      @@class_id = 0
+
+      def init
+        @class_id = (@@class_id += 1)
+      end
 
       def add_type!(env)
         @ty ||= begin
@@ -181,8 +186,22 @@ module Esquis
       end
 
       def to_ll
+        t = %Q{"#{name}"}
+        n = %Q{"#{name}.new"}
         [
-          "%\"#{name}\" = type { i32 }"
+          "%#{t} = type { i32 }",
+          "define %#{t}* @#{n}() {",
+          "  %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
+          "  %raw_addr = call i8* @GC_malloc(i64 %size)",
+          "  %addr = bitcast i8* %raw_addr to %#{t}*",
+          "",
+          "  call void @llvm.memset.p0i8.i64(i8* %raw_addr, i8 0, i64 %size, i32 4, i1 false)",
+          "",
+          "  %id_addr = getelementptr inbounds %#{t}, %#{t}* %addr, i32 0, i32 0",
+          "  store i32 #{@class_id}, i32* %id_addr",
+          "",
+          "  ret %#{t}* %addr",
+          "}",
         ]
       end
     end

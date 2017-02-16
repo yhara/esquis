@@ -47,6 +47,18 @@ describe "ll emitter:" do
       EOD
       expect(ll).to eq(<<~EOD)
         %"A" = type { i32 }
+        define %"A"* @"A.new"() {
+          %size = ptrtoint %"A"* getelementptr (%"A", %"A"* null, i32 1) to i64
+          %raw_addr = call i8* @GC_malloc(i64 %size)
+          %addr = bitcast i8* %raw_addr to %"A"*
+
+          call void @llvm.memset.p0i8.i64(i8* %raw_addr, i8 0, i64 %size, i32 4, i1 false)
+
+          %id_addr = getelementptr inbounds %"A", %"A"* %addr, i32 0, i32 0
+          store i32 1, i32* %id_addr
+
+          ret %"A"* %addr
+        }
         define i32 @main() {
           call void @GC_init()
           ret i32 0
