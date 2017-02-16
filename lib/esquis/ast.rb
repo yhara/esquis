@@ -574,6 +574,10 @@ module Esquis
         @@types[name] = self
       end
       attr_reader :name
+
+      def to_s
+        "#<TyRaw #{name}>"
+      end
     end
 
     class TyMethod < Type
