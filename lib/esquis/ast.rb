@@ -189,25 +189,12 @@ module Esquis
 
     class Defun < Node
       props :name, :params, :ret_type_name, :body_stmts
-      attr_reader :ret_ty
 
       def init
         if (dups = Node.find_duplication(params.map(&:name))).any?
           raise DuplicatedParamName,
             "duplicated param name #{dups.join ','} of func #{name}"
         end
-      end
-
-      def arity
-        params.length
-      end
-
-      def param_type_names
-        Array.new(arity, "double")
-      end
-
-      def ret_type_name
-        "double"
       end
 
       def add_type!(env)
@@ -240,17 +227,12 @@ module Esquis
 
     class Extern < Node
       props :ret_type_name, :name, :param_type_names
-      attr_reader :ret_ty
 
       def add_type!(env)
         @ty ||= begin
           param_tys = param_type_names.map{|x| TyRaw[x]}
           TyMethod.new(name, param_tys, TyRaw[ret_type_name])
         end
-      end
-
-      def arity
-        param_type_names.length
       end
 
       def to_ll(prog)
