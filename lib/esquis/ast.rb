@@ -159,7 +159,7 @@ module Esquis
         Array.new(arity, "double")
       end
 
-      def ret_type
+      def ret_type_name
         "double"
       end
 
@@ -181,7 +181,7 @@ module Esquis
     end
 
     class Extern < Node
-      props :ret_type, :name, :param_type_names
+      props :ret_type_name, :name, :param_type_names
 
       def arity
         param_type_names.length
@@ -189,7 +189,7 @@ module Esquis
 
       def to_ll(prog)
         [
-           "declare #{@ret_type} @#{@name}(#{@param_type_names.join ','})"
+           "declare #{@ret_type_name} @#{@name}(#{@param_type_names.join ','})"
         ]
       end
     end
@@ -353,8 +353,8 @@ module Esquis
         end
 
         r = newreg
-        ll << "  #{r} = call #{target.ret_type} @#{name}(#{args_and_types.join(', ')})"
-        case target.ret_type
+        ll << "  #{r} = call #{target.ret_type_name} @#{name}(#{args_and_types.join(', ')})"
+        case target.ret_type_name
         when "i32"
           rr = newreg
           ll << "  #{rr} = sitofp i32 #{r} to double"
