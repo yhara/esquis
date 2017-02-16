@@ -9,6 +9,8 @@ module Esquis
     class Node
       extend Props
 
+      attr_reader :ty  # Instance of Ast::Type
+
       # Return duplicated elements in ary
       # Return [] if none
       def self.find_duplication(ary)
@@ -42,12 +44,12 @@ module Esquis
       # Return LLVM bitcode as [String]
       # @param prog [Program]
       # @param env [Set]
-      # def to_ll(prog, env)
+      # def to_ll(env)
       # end
 
       # Return LLVM bitcode as [String] and the name of the register
       # which contains the value of this node
-      # def to_ll_r(prog, env)
+      # def to_ll_r(env)
       # end
 
       # @param env[Hash<String, Type>]
@@ -144,7 +146,7 @@ module Esquis
         [
           "define i32 @main() {",
           "  call void @GC_init()",
-          *stmts.map{|x| x.to_ll(prog, [])},
+          *stmts.map{|x| x.to_ll([])},
           "  ret i32 0",
           "}",
         ]
@@ -214,9 +216,8 @@ module Esquis
           newenv = env.add_local_vars(lvars)
 
           body_stmts.each{|x| x.add_type!(newenv)}
-          param_tys = Array.new(arity, TyRaw["Float"])
-          @ret_ty = TyRaw["Float"]
-          TyMethod.new(name, param_tys)
+          param_tys = Array.new(params.length, TyRaw["Float"])
+          TyMethod.new(name, param_tys, TyRaw["Float"])
         end
       end
 
@@ -226,7 +227,7 @@ module Esquis
 
         ll = []
         ll << "define double @#{name}(#{param_list}) {"
-        ll.concat body_stmts.flat_map{|x| x.to_ll(prog, env)}
+        ll.concat body_stmts.flat_map{|x| x.to_ll(env)}
         ll << "  ret double 0.0"
         ll << "}"
         return ll
@@ -244,8 +245,7 @@ module Esquis
       def add_type!(env)
         @ty ||= begin
           param_tys = param_type_names.map{|x| TyRaw[x]}
-          @ret_ty = TyRaw[ret_type_name]
-          TyMethod.new(name, param_tys)
+          TyMethod.new(name, param_tys, TyRaw[ret_type_name])
         end
       end
 
@@ -271,11 +271,11 @@ module Esquis
         end
       end
 
-      def to_ll(prog, env)
+      def to_ll(env)
         i = newif
-        cond_ll, cond_r = @cond_expr.to_ll_r(prog, env)
-        then_ll = @then_stmts.flat_map{|x| x.to_ll(prog, env)}
-        else_ll = @else_stmts.flat_map{|x| x.to_ll(prog, env)}
+        cond_ll, cond_r = @cond_expr.to_ll_r(env)
+        then_ll = @then_stmts.flat_map{|x| x.to_ll(env)}
+        else_ll = @else_stmts.flat_map{|x| x.to_ll(env)}
 
         ll = []
         ll.concat cond_ll
@@ -309,11 +309,11 @@ module Esquis
         end
       end
 
-      def to_ll(prog, env)
-        begin_ll, begin_r = begin_expr.to_ll_r(prog, env)
-        end_ll, end_r = end_expr.to_ll_r(prog, env)
-        step_ll, step_r = step_expr.to_ll_r(prog, env)
-        body_ll = body_stmts.flat_map{|x| x.to_ll(prog, env + [varname])}
+      def to_ll(env)
+        begin_ll, begin_r = begin_expr.to_ll_r(env)
+        end_ll, end_r = end_expr.to_ll_r(env)
+        step_ll, step_r = step_expr.to_ll_r(env)
+        body_ll = body_stmts.flat_map{|x| x.to_ll(env + [varname])}
 
         i = newfor
         ll = []
@@ -352,8 +352,8 @@ module Esquis
         end
       end
 
-      def to_ll(prog, env)
-        expr_ll, expr_r = expr.to_ll_r(prog, env)
+      def to_ll(env)
+        expr_ll, expr_r = expr.to_ll_r(env)
 
         ll = []
         ll.concat expr_ll
@@ -372,8 +372,8 @@ module Esquis
         end
       end
 
-      def to_ll(prog, env)
-        ll, r = @expr.to_ll_r(prog, env)
+      def to_ll(env)
+        ll, r = @expr.to_ll_r(env)
         return ll
       end
     end
@@ -406,9 +406,9 @@ module Esquis
         end
       end
 
-      def to_ll_r(prog, env)
-        ll1, r1 = @left_expr.to_ll_r(prog, env)
-        ll2, r2 = @right_expr.to_ll_r(prog, env)
+      def to_ll_r(env)
+        ll1, r1 = @left_expr.to_ll_r(env)
+        ll2, r2 = @right_expr.to_ll_r(env)
         ope = BINOPS[@op] or raise "op #{@op} not implemented yet"
 
         ll = ll1 + ll2
@@ -428,8 +428,8 @@ module Esquis
         end
       end
 
-      def to_ll_r(prog, env)
-        expr_ll, expr_r = expr.to_ll_r(prog, env)
+      def to_ll_r(env)
+        expr_ll, expr_r = expr.to_ll_r(env)
 
         r = newreg
         ll = []
@@ -451,7 +451,7 @@ module Esquis
         end
       end
 
-      def to_ll_r(prog, env)
+      def to_ll_r(env)
         TODO
       end
     end
@@ -462,43 +462,40 @@ module Esquis
       def add_type!(env)
         @ty ||= begin
           args.each{|x| x.add_type!(env)}
-          if (func = env.find_toplevel_func(name))
-            # TODO: check arity and arg types
-            func.ret_ty
-          else
+          unless (@func = env.find_toplevel_func(name))
             raise "undefined function: #{name.inspect}"
           end
+          # TODO: check arity and arg types
+          @func.ty.ret_ty
         end
       end
 
-      def to_ll_r(prog, env)
-        unless (target = prog.externs[@name] || prog.funcs[@name])
-          raise "Unkown function: #{@name}"
-        end
-        unless target.arity == @args.length
-          raise "Invalid number of arguments (#{@name})"
-        end
-
+      def to_ll_r(env)
         ll = []
         args_and_types = []
-        @args.map{|x| x.to_ll_r(prog, env)}.each.with_index do |(arg_ll, arg_r), i|
-          type = target.param_type_names[i]
+        @args.map{|x| x.to_ll_r(env)}.each.with_index do |(arg_ll, arg_r), i|
+          type = @func.ty.arg_types[i]
           ll.concat(arg_ll)
           case type
-          when "i32"
+          when TyRaw["Int"], TyRaw["i32"]
             rr = newreg
             ll << "  #{rr} = fptosi double #{arg_r} to i32"
             args_and_types << "i32 #{rr}"
-          when "double"
+          when TyRaw["Float"], TyRaw["double"]
             args_and_types << "double #{arg_r}"
           else
             raise "type #{type} is not supported"
           end
         end
 
+        ret_type_name = case @func.ty.ret_ty
+                        when TyRaw["Int"], TyRaw["i32"] then "i32"
+                        when TyRaw["Float"], TyRaw["double"] then "double"
+                        else raise "type #{type} is not supported"
+                        end
         r = newreg
-        ll << "  #{r} = call #{target.ret_type_name} @#{name}(#{args_and_types.join(', ')})"
-        case target.ret_type_name
+        ll << "  #{r} = call #{ret_type_name} @#{name}(#{args_and_types.join(', ')})"
+        case ret_type_name
         when "i32"
           rr = newreg
           ll << "  #{rr} = sitofp i32 #{r} to double"
@@ -524,7 +521,7 @@ module Esquis
         end
       end
 
-      def to_ll_r(prog, env)
+      def to_ll_r(env)
         if !env.include?(name)
           raise "undefined variable #{name}"
         end
@@ -545,7 +542,7 @@ module Esquis
         end
       end
 
-      def to_ll_r(prog, env)
+      def to_ll_r(env)
         case @value
         when Float
           return [], @value.to_s
@@ -581,9 +578,10 @@ module Esquis
     end
 
     class TyMethod < Type
-      def initialize(name, arg_types)
-        @name, @arg_types = name, arg_types
+      def initialize(name, arg_types, ret_ty)
+        @name, @arg_types, @ret_ty = name, arg_types, ret_ty
       end
+      attr_reader :name, :arg_types, :ret_ty
     end
 
     # Indicates this node has no type (eg. return statement)
