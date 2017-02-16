@@ -113,7 +113,8 @@ rule
       { Ast::Return.new(val[1]) }
 
     expression:
-        fcall
+        method_call
+      | fcall
       | varref
       | literal
 
@@ -129,6 +130,10 @@ rule
       | '(' expression ')'
       { val[1] }
     <%= repeat0 'expression' %>
+
+    method_call:
+        expression '.' IDENT '(' opt_args ')'
+      { Ast::MethodCall.new(val[0], val[2], val[4]) }
 
     fcall:
         IDENT '(' opt_args ')'

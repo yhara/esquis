@@ -45,6 +45,10 @@ module Esquis
       # which contains the value of this node
       # def to_ll_r(prog, env)
       # end
+
+      # @param env[Hash<String, Type>]
+      # def add_type!(env)
+      # end
     end
 
     # The whole program
@@ -69,6 +73,8 @@ module Esquis
       def to_ll_str(without_header: false)
         Node.reset
 
+        add_type!(Env.new)
+
         header = (without_header ? [] : LL_HEADER)
         return (header + to_ll).join("\n") + "\n"
       end
@@ -79,6 +85,24 @@ module Esquis
       ]
 
       private
+
+      def add_type!(env)
+        @ty ||= begin
+          newenv = env
+          defs.each do |x|
+            case x
+            when DefClass
+              # TODO
+            when Defun, Extern
+              newenv = newenv.add_toplevel_func(x.name, x)
+            end
+          end
+
+          defs.each{|x| x.add_type!(newenv) }
+          main.add_type!(newenv)
+          NoType
+        end
+      end
 
       def to_ll
         [
@@ -102,6 +126,13 @@ module Esquis
 
       def init
         check_misplaced_return(stmts)
+      end
+
+      def add_type!(env)
+        @ty ||= begin
+          stmts.each{|x| x.add_type!(env)}
+          NoType
+        end
       end
 
       def to_ll(prog)
@@ -135,6 +166,13 @@ module Esquis
     class DefClass < Node
       props :name, :defuns
 
+      def add_type!(env)
+        @ty ||= begin
+          defuns.each{|x| x.add_type!(env)}
+          TyRaw[name]
+        end
+      end
+
       def to_ll(prog)
         [
           "%\"#{name}\" = type { i32 }"
@@ -144,6 +182,7 @@ module Esquis
 
     class Defun < Node
       props :name, :params, :ret_type_name, :body_stmts
+      attr_reader :ret_ty
 
       def init
         if (dups = Node.find_duplication(params.map(&:name))).any?
@@ -161,6 +200,18 @@ module Esquis
 
       def ret_type_name
         "double"
+      end
+
+      def add_type!(env)
+        @ty ||= begin
+          lvars = params.map{|x| [x.name, TyRaw[x.type_name]]}.to_h
+          newenv = env.add_local_vars(lvars)
+
+          body_stmts.each{|x| x.add_type!(newenv)}
+          param_tys = Array.new(arity, TyRaw["Float"])
+          @ret_ty = TyRaw["Float"]
+          TyMethod.new(name, param_tys)
+        end
       end
 
       def to_ll(prog)
@@ -182,6 +233,15 @@ module Esquis
 
     class Extern < Node
       props :ret_type_name, :name, :param_type_names
+      attr_reader :ret_ty
+
+      def add_type!(env)
+        @ty ||= begin
+          param_tys = param_type_names.map{|x| TyRaw[x]}
+          @ret_ty = TyRaw[ret_type_name]
+          TyMethod.new(name, param_tys)
+        end
+      end
 
       def arity
         param_type_names.length
@@ -196,6 +256,14 @@ module Esquis
 
     class If < Node
       props :cond_expr, :then_stmts, :else_stmts
+
+      def add_type!(env)
+        @ty ||= begin
+          cond_expr.add_type!(env)
+          then_stmts.each{|x| x.add_type!(env)}
+          else_stmts.each{|x| x.add_type!(env)}
+        end
+      end
 
       def to_ll(prog, env)
         i = newif
@@ -222,6 +290,18 @@ module Esquis
 
     class For < Node
       props :varname, :begin_expr, :end_expr, :step_expr, :body_stmts
+
+      def add_type!(env)
+        @ty ||= begin
+          begin_expr.add_type!(env)
+          end_expr.add_type!(env)
+          step_expr.add_type!(env)
+
+          newenv = env.add_local_vars(varname => TyRaw["Float"])
+          body_stmts.each{|x| x.add_type!(newenv)}
+          NoType
+        end
+      end
 
       def to_ll(prog, env)
         begin_ll, begin_r = begin_expr.to_ll_r(prog, env)
@@ -259,6 +339,13 @@ module Esquis
     class Return < Node
       props :expr
 
+      def add_type!(env)
+        @ty ||= begin
+          expr.add_type!(env)
+          NoType
+        end
+      end
+
       def to_ll(prog, env)
         expr_ll, expr_r = expr.to_ll_r(prog, env)
 
@@ -271,6 +358,13 @@ module Esquis
 
     class ExprStmt < Node
       props :expr
+
+      def add_type!(env)
+        @ty ||= begin
+          expr.add_type!(env)
+          NoType
+        end
+      end
 
       def to_ll(prog, env)
         ll, r = @expr.to_ll_r(prog, env)
@@ -298,6 +392,14 @@ module Esquis
     class BinExpr < Node
       props :op, :left_expr, :right_expr
 
+      def add_type!(env)
+        @ty ||= begin
+          left_expr.add_type!(env)
+          right_expr.add_type!(env)
+          TyRaw["Float"]
+        end
+      end
+
       def to_ll_r(prog, env)
         ll1, r1 = @left_expr.to_ll_r(prog, env)
         ll2, r2 = @right_expr.to_ll_r(prog, env)
@@ -313,6 +415,13 @@ module Esquis
     class UnaryExpr < Node
       props :op, :expr
 
+      def add_type!(env)
+        @ty ||= begin
+          expr.add_type!(env)
+          TyRaw["Float"]
+        end
+      end
+
       def to_ll_r(prog, env)
         expr_ll, expr_r = expr.to_ll_r(prog, env)
 
@@ -324,8 +433,37 @@ module Esquis
       end
     end
 
+    class MethodCall < Node
+      props :receiver_expr, :method_name, :args
+
+      def add_type!(env)
+        @ty ||= begin
+          receiver_ty = receiver_expr.add_type!(env)
+          method = env.find_method(receiver_ty, method_name)
+          # TODO: check arity and arg types
+          method.return_ty
+        end
+      end
+
+      def to_ll_r(prog, env)
+        TODO
+      end
+    end
+
     class FunCall < Node
       props :name, :args
+
+      def add_type!(env)
+        @ty ||= begin
+          args.each{|x| x.add_type!(env)}
+          if (func = env.find_toplevel_func(name))
+            # TODO: check arity and arg types
+            func.ret_ty
+          else
+            raise "undefined function: #{name.inspect}"
+          end
+        end
+      end
 
       def to_ll_r(prog, env)
         unless (target = prog.externs[@name] || prog.funcs[@name])
@@ -370,6 +508,16 @@ module Esquis
     class VarRef < Node
       props :name
 
+      def add_type!(env)
+        @ty ||= begin
+          if (ty = env.find_local_var(name))
+            ty
+          else
+            raise "undefined variable: #{name}"
+          end
+        end
+      end
+
       def to_ll_r(prog, env)
         if !env.include?(name)
           raise "undefined variable #{name}"
@@ -381,6 +529,16 @@ module Esquis
     class Literal < Node
       props :value
 
+      def add_type!(env)
+        @ty ||= begin
+          case @value
+          when Float then TyRaw["Float"]
+          when Integer then TyRaw["Integer"]
+          else raise
+          end
+        end
+      end
+
       def to_ll_r(prog, env)
         case @value
         when Float
@@ -390,6 +548,69 @@ module Esquis
         else
           raise
         end
+      end
+    end
+
+    #
+    # Typing
+    #
+    class Type
+    end
+
+    class TyRaw < Type
+      @@types = {}
+      def self.[](name)
+        @@types[name] ||= new(name)
+      end
+
+      def initialize(name)
+        @name = name
+        @@types[name] = self
+      end
+      attr_reader :name
+    end
+
+    class TyMethod < Type
+      def initialize(name, arg_types)
+        @name, @arg_types = name, arg_types
+      end
+    end
+
+    # Indicates this node has no type (eg. return statement)
+    class NoType < Type
+    end
+
+    class Env
+      def initialize(toplevel_funcs = {}, local_vars = {})
+        @toplevel_funcs, @local_vars = toplevel_funcs, local_vars
+      end
+
+      # @param lvars [{String => Ty}]
+      def add_local_vars(lvars)
+        return Env.new(@toplevel_funcs,
+                       @local_vars.merge(lvars))
+      end
+
+      def find_local_var(name)
+        return @local_vars[name]
+      end
+
+      # @return [Ast::Defun]
+      def find_method(receiver_ty, method_name)
+
+      end
+
+      # @param name [String]
+      # @param defun [Ast::Defun]
+      # @return [Env]
+      def add_toplevel_func(name, defun)
+        raise if @toplevel_funcs.key?(name)
+        return Env.new(@toplevel_funcs.merge(name => defun))
+      end
+
+      # @return [Ast::Defun or nil]
+      def find_toplevel_func(name)
+        @toplevel_funcs[name]
       end
     end
   end
