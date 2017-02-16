@@ -2,6 +2,10 @@ require 'set'
 
 module Esquis
   class Ast
+    class DuplicatedDefinition < StandardError; end
+    class DuplicatedParamName < StandardError; end
+    class MisplacedReturn < StandardError; end
+
     class Node
       extend Props
 
@@ -112,10 +116,11 @@ module Esquis
       end
 
       def check_duplicated_defun
-        defuns = defs.select{|x| x.is_a?(Defun)}
-        dups = Node.find_duplication(defuns.map(&:name))
-        if dups.any?
-          raise "duplicated definition of func #{dups.join ','}"
+        names = defs.select{|x| x.is_a?(Defun) || x.is_a?(Extern)}
+                    .map(&:name)
+        if (dups = Node.find_duplication(names)).any?
+          raise DuplicatedDefinition,
+            "duplicated definition of func #{dups.join ','}"
         end
       end
     end
@@ -157,7 +162,7 @@ module Esquis
           when For
             check_misplaced_return(stmt.body_stmts)
           when Return
-            raise "cannot return from main"
+            raise MisplacedReturn, "cannot return from main"
           end
         end
       end
@@ -186,7 +191,8 @@ module Esquis
 
       def init
         if (dups = Node.find_duplication(params.map(&:name))).any?
-          raise "duplicated param name #{dups.join ','} of func #{name}"
+          raise DuplicatedParamName,
+            "duplicated param name #{dups.join ','} of func #{name}"
         end
       end
 
