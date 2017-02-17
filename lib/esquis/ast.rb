@@ -171,7 +171,7 @@ module Esquis
     end
 
     class DefClass < Node
-      props :name, :defuns
+      props :name, :defmethods
       @@class_id = 0
 
       def init
@@ -180,7 +180,7 @@ module Esquis
 
       def add_type!(env)
         @ty ||= begin
-          defuns.each{|x| x.add_type!(env)}
+          defmethods.each{|x| x.add_type!(env, self)}
           TyRaw[name]
         end
       end
@@ -202,6 +202,7 @@ module Esquis
           "",
           "  ret %#{t}* %addr",
           "}",
+          *defmethods.flat_map{|x| x.to_ll}
         ]
       end
     end
@@ -218,30 +219,61 @@ module Esquis
 
       def add_type!(env)
         @ty ||= begin
-          lvars = params.map{|x| [x.name, TyRaw[x.type_name]]}.to_h
-          newenv = env.add_local_vars(lvars)
+          params.each{|x| x.add_type!(env)}
 
+          lvars = params.map{|x| [x.name, x.ty]}.to_h
+          newenv = env.add_local_vars(lvars)
           body_stmts.each{|x| x.add_type!(newenv)}
-          param_tys = Array.new(params.length, TyRaw["Float"])
-          TyMethod.new(name, param_tys, TyRaw["Float"])
+
+          TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
         end
       end
 
-      def to_ll
-        env = params.map(&:name).to_set
-        param_list = params.map{|x| "double %#{x.name}"}.join(", ")
+      def to_ll(funname: name, self_param: nil)
+        param_list = params.flat_map(&:to_ll)
+        param_list.unshift(self_param) if self_param
 
+        ret_t = @ty.ret_ty.llvm_type
+        zero = case ret_t
+               when "double" then "0.0"
+               when "i32" then "0"
+               else raise "type #{ret_type_name} not supported"
+               end
         ll = []
-        ll << "define double @#{name}(#{param_list}) {"
+        ll << "define #{ret_t} @#{funname}(#{param_list.join ', '}) {"
         ll.concat body_stmts.flat_map{|x| x.to_ll}
-        ll << "  ret double 0.0"
+        ll << "  ret #{ret_t} #{zero}"
         ll << "}"
         return ll
       end
     end
 
+    class DefMethod < Defun
+      def add_type!(env, cls)
+        @ty ||= begin
+          @cls = cls
+          super(env)
+        end
+      end
+
+      def to_ll
+        return super(funname: %Q{"#{@cls.name}##{name}"},
+                     self_param: %Q{%"#{@cls.name}"* self})
+      end
+    end
+
     class Param < Node
       props :name, :type_name
+
+      def add_type!(env)
+        @ty ||= begin
+          TyRaw[type_name]
+        end
+      end
+
+      def to_ll
+        return ["#{@ty.llvm_type} %#{name}"]
+      end
     end
 
     class Extern < Node
@@ -358,7 +390,7 @@ module Esquis
 
         ll = []
         ll.concat expr_ll
-        ll << "  ret double #{expr_r}"
+        ll << "  ret #{expr.ty.llvm_type} #{expr_r}"
         return ll
       end
     end
@@ -475,7 +507,7 @@ module Esquis
         ll = []
         args_and_types = []
         @args.map{|x| x.to_ll_r}.each.with_index do |(arg_ll, arg_r), i|
-          type = @func.ty.arg_types[i]
+          type = @func.ty.param_tys[i]
           ll.concat(arg_ll)
           case type
           when TyRaw["Int"], TyRaw["i32"]
@@ -534,7 +566,7 @@ module Esquis
         @ty ||= begin
           case @value
           when Float then TyRaw["Float"]
-          when Integer then TyRaw["Integer"]
+          when Integer then TyRaw["Int"]
           else raise
           end
         end
@@ -570,16 +602,27 @@ module Esquis
       end
       attr_reader :name
 
-      def to_s
+      attr_writer :llvm_type
+      def llvm_type
+        @llvm_type or raise "Cannot convert #{self} to llvm"
+      end
+
+      def inspect
         "#<TyRaw #{name}>"
       end
+      alias to_s inspect
     end
 
+    TyRaw["Float"].llvm_type = "double"
+    TyRaw["double"].llvm_type = "double"
+    TyRaw["Int"].llvm_type = "i32"
+    TyRaw["i32"].llvm_type = "i32"
+
     class TyMethod < Type
-      def initialize(name, arg_types, ret_ty)
-        @name, @arg_types, @ret_ty = name, arg_types, ret_ty
+      def initialize(name, param_tys, ret_ty)
+        @name, @param_tys, @ret_ty = name, param_tys, ret_ty
       end
-      attr_reader :name, :arg_types, :ret_ty
+      attr_reader :name, :param_tys, :ret_ty
     end
 
     # Indicates this node has no type (eg. return statement)

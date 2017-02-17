@@ -45,7 +45,7 @@ describe "ll emitter:" do
       ll = to_ll(<<~EOD)
         class A end
       EOD
-      expect(ll).to eq(<<~EOD)
+      expect(ll).to include(<<~EOD)
         %"A" = type { i32 }
         define %"A"* @"A.new"() {
           %size = ptrtoint %"A"* getelementptr (%"A", %"A"* null, i32 1) to i64
@@ -59,8 +59,23 @@ describe "ll emitter:" do
 
           ret %"A"* %addr
         }
-        define i32 @main() {
-          call void @GC_init()
+      EOD
+    end
+  end
+
+  describe "method definition" do
+    it "should define a function" do
+      ll = to_ll(<<~EOD)
+        class A
+          def foo(x: Int) -> Int {
+            return 123;
+          }
+        end
+      EOD
+      # FIXME: `i32 123.0` is invalid .ll
+      expect(ll).to include(<<~EOD)
+        define i32 @"A#foo"(%"A"* self, i32 %x) {
+          ret i32 123.0
           ret i32 0
         }
       EOD

@@ -55,9 +55,16 @@ rule
 
     defclass:
       'class' IDENT
-        opt_defuns
+        opt_defmethods
       'end'
       { Ast::DefClass.new(val[1], val[2]) }
+
+    defmethod:
+      'def' IDENT '(' opt_params ')' '->' IDENT '{'
+         opt_statements
+      '}'
+      { Ast::DefMethod.new(val[1], val[3], val[6], val[8]) }
+    <%= repeat0 'defmethod' %>
 
     defun:
       'def' IDENT '(' opt_params ')' '->' IDENT '{'
