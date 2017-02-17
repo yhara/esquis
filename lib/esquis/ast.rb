@@ -122,7 +122,7 @@ module Esquis
                     .map(&:name)
         if (dups = Node.find_duplication(names)).any?
           raise DuplicatedDefinition,
-            "duplicated definition of func #{dups.join ','}"
+            "duplicated definition of func #{dups.join ', '}"
         end
       end
     end
@@ -212,7 +212,7 @@ module Esquis
       def init
         if (dups = Node.find_duplication(params.map(&:name))).any?
           raise DuplicatedParamName,
-            "duplicated param name #{dups.join ','} of func #{name}"
+            "duplicated param name #{dups.join ', '} of func #{name}"
         end
       end
 
