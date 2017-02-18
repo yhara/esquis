@@ -1,15 +1,20 @@
 require 'set'
+require 'esquis/type'
 
 module Esquis
   class Ast
+    include Esquis::Type
+
     class DuplicatedDefinition < StandardError; end
     class DuplicatedParamName < StandardError; end
     class MisplacedReturn < StandardError; end
+    class TypeMismatch < StandardError; end
 
     class Node
+      include Esquis::Type
       extend Props
 
-      attr_reader :ty  # Instance of Ast::Type
+      attr_reader :ty  # Instance of Esquis::Type
 
       # Return duplicated elements in ary
       # Return [] if none
@@ -298,7 +303,11 @@ module Esquis
 
       def add_type!(env)
         @ty ||= begin
-          cond_expr.add_type!(env)
+          cond_ty = cond_expr.add_type!(env)
+          if cond_ty != TyRaw["Bool"]
+            raise TypeMismatch, "condition of if-stmt must be Bool (got #{cond_ty})"
+          end
+
           then_stmts.each{|x| x.add_type!(env)}
           else_stmts.each{|x| x.add_type!(env)}
         end
@@ -412,21 +421,21 @@ module Esquis
     end
 
     BINOPS = {
-      "+" => "fadd double",
-      "-" => "fsub double",
-      "*" => "fmul double",
-      "/" => "fdiv double",
-      "%" => "frem double",
+      "+" => [TyRaw["Float"], "fadd double"],
+      "-" => [TyRaw["Float"], "fsub double"],
+      "*" => [TyRaw["Float"], "fmul double"],
+      "/" => [TyRaw["Float"], "fdiv double"],
+      "%" => [TyRaw["Float"], "frem double"],
 
-      "==" => "fcmp oeq double",
-      ">" => "fcmp ogt double",
-      ">=" => "fcmp oge double",
-      "<" => "fcmp olt double",
-      "<=" => "fcmp ole double",
-      "!=" => "fcmp one double",
+      "==" => [TyRaw["Bool"], "fcmp oeq double"],
+      ">"  => [TyRaw["Bool"], "fcmp ogt double"],
+      ">=" => [TyRaw["Bool"], "fcmp oge double"],
+      "<"  => [TyRaw["Bool"], "fcmp olt double"],
+      "<=" => [TyRaw["Bool"], "fcmp ole double"],
+      "!=" => [TyRaw["Bool"], "fcmp one double"],
 
-      "&&" => "and i1",
-      "||" => "or i1",
+      "&&" => [TyRaw["Bool"], "and i1"],
+      "||" => [TyRaw["Bool"], "or i1"],
     }
     class BinExpr < Node
       props :op, :left_expr, :right_expr
@@ -435,14 +444,17 @@ module Esquis
         @ty ||= begin
           left_expr.add_type!(env)
           right_expr.add_type!(env)
-          TyRaw["Float"]
+
+          ty, _ = BINOPS[@op]
+          raise "operator not implemented: #{@op}" unless ty
+          ty
         end
       end
 
       def to_ll_r
         ll1, r1 = @left_expr.to_ll_r
         ll2, r2 = @right_expr.to_ll_r
-        ope = BINOPS[@op] or raise "op #{@op} not implemented yet"
+        ope = BINOPS[@op][1]
 
         ll = ll1 + ll2
         r3 = newreg
@@ -582,51 +594,6 @@ module Esquis
           raise
         end
       end
-    end
-
-    #
-    # Typing
-    #
-    class Type
-    end
-
-    class TyRaw < Type
-      @@types = {}
-      def self.[](name)
-        @@types[name] ||= new(name)
-      end
-
-      def initialize(name)
-        @name = name
-        @@types[name] = self
-      end
-      attr_reader :name
-
-      attr_writer :llvm_type
-      def llvm_type
-        @llvm_type or raise "Cannot convert #{self} to llvm"
-      end
-
-      def inspect
-        "#<TyRaw #{name}>"
-      end
-      alias to_s inspect
-    end
-
-    TyRaw["Float"].llvm_type = "double"
-    TyRaw["double"].llvm_type = "double"
-    TyRaw["Int"].llvm_type = "i32"
-    TyRaw["i32"].llvm_type = "i32"
-
-    class TyMethod < Type
-      def initialize(name, param_tys, ret_ty)
-        @name, @param_tys, @ret_ty = name, param_tys, ret_ty
-      end
-      attr_reader :name, :param_tys, :ret_ty
-    end
-
-    # Indicates this node has no type (eg. return statement)
-    class NoType < Type
     end
 
     class Env

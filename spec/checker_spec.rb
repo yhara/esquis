@@ -36,5 +36,19 @@ describe "Esquis" do
   context "typing" do
     it "should check arity on calling toplevel func"
     it "should check arity of method call"
+
+    it "should check condition of if-stmt is Bool" do
+      expect {
+        to_ll(<<~EOD)
+          if (1) { 2; }
+        EOD
+      }.to raise_error(Esquis::Ast::TypeMismatch)
+
+      expect {
+        to_ll(<<~EOD)
+          if (1 == 1) { 2; }
+        EOD
+      }.not_to raise_error
+    end
   end
 end
