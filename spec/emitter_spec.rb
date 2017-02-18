@@ -132,7 +132,7 @@ describe "ll emitter:" do
     it "should expand into loop" do
       ll = to_ll(<<~EOD)
         extern i32 putchar(i32);
-        for (x; 65 ... 70 ; 2) {
+        for (x: Int; 65 ... 70 ; 2) {
           putchar(x);
         }
       EOD

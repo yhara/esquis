@@ -36,8 +36,8 @@ def mandleconverge(real: Float, imag: Float) -> Float {
 
 def mandelhelp(xmin: Float, xmax: Float, xstep: Float,
                ymin: Float, ymax: Float, ystep: Float) -> Float {
-  for (y ; ymin ... ymax ; ystep) {
-    for (x ; xmin ... xmax ; xstep) {
+  for (y: Float ; ymin ... ymax ; ystep) {
+    for (x: Float ; xmin ... xmax ; xstep) {
        printdensity(mandleconverge(x,y));
     }
     putchar(10);
@@ -167,7 +167,7 @@ describe Esquis do
     it 'for' do
       src = <<-EOD
         extern i32 putchar(i32);
-        for (x; 65 ... 70 ; 2) {
+        for (x: Int; 65 ... 70 ; 2) {
           putchar(x);
         }
       EOD

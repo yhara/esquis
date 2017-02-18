@@ -113,8 +113,8 @@ rule
       { val[1] }
 
     for_stmt:
-        'for' '(' IDENT ';' expression '...' expression ';' expression ')' block_or_stmt
-      { Ast::For.new(val[2], val[4], val[6], val[8], val[10]) }
+        'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' block_or_stmt
+      { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[12]) }
 
     return_stmt:
         'return' expression ';'

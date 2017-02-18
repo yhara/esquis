@@ -347,7 +347,8 @@ module Esquis
     end
 
     class For < Node
-      props :varname, :begin_expr, :end_expr, :step_expr, :body_stmts
+      props :varname, :var_type_name,
+        :begin_expr, :end_expr, :step_expr, :body_stmts
 
       def add_type!(env)
         @ty ||= begin
@@ -355,7 +356,7 @@ module Esquis
           end_expr.add_type!(env)
           step_expr.add_type!(env)
 
-          newenv = env.add_local_vars(varname => TyRaw["Float"])
+          newenv = env.add_local_vars(varname => TyRaw[var_type_name])
           body_stmts.each{|x| x.add_type!(newenv)}
           NoType
         end
