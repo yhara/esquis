@@ -9,6 +9,7 @@ module Esquis
     class DuplicatedParamName < StandardError; end
     class MisplacedReturn < StandardError; end
     class TypeMismatch < StandardError; end
+    class ArityMismatch < StandardError; end
 
     class Node
       include Esquis::Type
@@ -222,6 +223,10 @@ module Esquis
         end
       end
 
+      def arity
+        params.length
+      end
+
       def add_type!(env)
         @ty ||= begin
           params.each{|x| x.add_type!(env)}
@@ -283,6 +288,10 @@ module Esquis
 
     class Extern < Node
       props :ret_type_name, :name, :param_type_names
+
+      def arity
+        param_type_names.length
+      end
 
       def add_type!(env)
         @ty ||= begin
@@ -510,7 +519,10 @@ module Esquis
           unless (@func = env.find_toplevel_func(name))
             raise "undefined function: #{name.inspect}"
           end
-          # TODO: check arity and arg types
+          if args.length != @func.arity
+            raise ArityMismatch,
+              "#{name} takes #{@func.arity} args but got #{args.length} args"
+          end
           @func.ty.ret_ty
         end
       end
@@ -529,7 +541,7 @@ module Esquis
           when TyRaw["Float"], TyRaw["double"]
             args_and_types << "double #{arg_r}"
           else
-            raise "type #{type} is not supported"
+            raise "type #{type.inspect} is not supported"
           end
         end
 
