@@ -84,6 +84,7 @@ rule
 
     param_type :
         IDENT
+      { Ast::Param.new(nil, val[0]) }
     <%= repeat0 'param_type', sep: "','" %>
 
     statement:

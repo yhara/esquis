@@ -287,22 +287,23 @@ module Esquis
     end
 
     class Extern < Node
-      props :ret_type_name, :name, :param_type_names
+      props :ret_type_name, :name, :params
 
       def arity
-        param_type_names.length
+        params.length
       end
 
       def add_type!(env)
         @ty ||= begin
-          param_tys = param_type_names.map{|x| TyRaw[x]}
-          TyMethod.new(name, param_tys, TyRaw[ret_type_name])
+          params.each{|x| x.add_type!(env)}
+          TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
         end
       end
 
       def to_ll
+        param_types = params.map{|x| x.ty.llvm_type}
         [
-           "declare #{@ret_type_name} @#{@name}(#{@param_type_names.join ','})"
+           "declare #{@ty.ret_ty.llvm_type} @#{@name}(#{param_types.join ','})"
         ]
       end
     end
