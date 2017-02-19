@@ -2,6 +2,7 @@ require 'spec_helper'
 
 describe "Esquis" do
   def to_ll(src)
+    Esquis::Ast.reset
     ast = Esquis::Parser.new.parse(src)
     ast.to_ll_str
   end

@@ -55,6 +55,7 @@ EOD
 
 describe Esquis do
   def run(src)
+    Esquis::Ast.reset
     return Esquis.run(src, capture: true)
   end
 

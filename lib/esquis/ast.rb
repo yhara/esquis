@@ -5,6 +5,12 @@ module Esquis
   class Ast
     include Esquis::Type
 
+    # for unit tests
+    def self.reset
+      Node.reset
+      DefClass.reset
+    end
+
     class DuplicatedDefinition < StandardError; end
     class DuplicatedParamName < StandardError; end
     class MisplacedReturn < StandardError; end
@@ -180,7 +186,9 @@ module Esquis
     class DefClass < Node
       props :name, :defmethods
       attr_reader :instance_ty
-      @@class_id = 0
+
+      def self.reset; @@class_id = 0; end
+      reset
 
       def init
         @class_id = (@@class_id += 1)
