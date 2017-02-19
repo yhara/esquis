@@ -70,6 +70,7 @@ module Esquis
 
       def init
         check_duplicated_defun
+        check_duplicated_defclass
       end
 
       # Return LLVM bitcode as String
@@ -121,6 +122,14 @@ module Esquis
         if (dups = Node.find_duplication(names)).any?
           raise DuplicatedDefinition,
             "duplicated definition of func #{dups.join ', '}"
+        end
+      end
+
+      def check_duplicated_defclass
+        names = defs.select{|x| x.is_a?(DefClass)}.map(&:name)
+        if (dups = Node.find_duplication(names)).any?
+          raise DuplicatedDefinition,
+            "duplicated definition of class #{dups.join ', '}"
         end
       end
     end
