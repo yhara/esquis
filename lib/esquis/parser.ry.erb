@@ -48,15 +48,30 @@ rule
           Ast::Main.new(val[1])) }
 
     definition :
-        defun
+        defclass
+      | defun
       | extern
     <%= repeat0 'definition' %>
+
+    defclass:
+      'class' IDENT
+        opt_defmethods
+      'end'
+      { Ast::DefClass.new(val[1], val[2]) }
+
+    defmethod:
+      'def' IDENT '(' opt_params ')' '->' IDENT '{'
+         opt_statements
+      '}'
+      { Ast::DefMethod.new(val[1], val[3], val[6], val[8]) }
+    <%= repeat0 'defmethod' %>
 
     defun:
       'def' IDENT '(' opt_params ')' '->' IDENT '{'
          opt_statements
       '}'
       { Ast::Defun.new(val[1], val[3], val[6], val[8]) }
+    <%= repeat0 'defun' %>
 
     param : 
       IDENT ':' IDENT
@@ -69,6 +84,7 @@ rule
 
     param_type :
         IDENT
+      { Ast::Param.new(nil, val[0]) }
     <%= repeat0 'param_type', sep: "','" %>
 
     statement:
@@ -97,15 +113,16 @@ rule
       { val[1] }
 
     for_stmt:
-        'for' '(' IDENT ';' expression '...' expression ';' expression ')' block_or_stmt
-      { Ast::For.new(val[2], val[4], val[6], val[8], val[10]) }
+        'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' block_or_stmt
+      { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[12]) }
 
     return_stmt:
         'return' expression ';'
       { Ast::Return.new(val[1]) }
 
     expression:
-        fcall
+        method_call
+      | fcall
       | varref
       | literal
 
@@ -121,6 +138,10 @@ rule
       | '(' expression ')'
       { val[1] }
     <%= repeat0 'expression' %>
+
+    method_call:
+        expression '.' IDENT '(' opt_args ')'
+      { Ast::MethodCall.new(val[0], val[2], val[4]) }
 
     fcall:
         IDENT '(' opt_args ')'
@@ -145,7 +166,7 @@ end
 require 'strscan'
 
 ---- inner
-KEYWORDS = /extern|def|if|else|for|return/
+KEYWORDS = /extern|class|end|def|if|else|for|return/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :

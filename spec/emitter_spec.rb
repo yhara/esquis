@@ -2,8 +2,9 @@ require 'spec_helper'
 
 describe "ll emitter:" do
   def to_ll(src)
+    Esquis::Ast.reset
     ast = Esquis::Parser.new.parse(src)
-    ast.to_ll
+    ast.to_ll_str(without_header: true)
   end
 
   describe "extern" do
@@ -14,6 +15,7 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           ret i32 0
         }
       EOD
@@ -29,9 +31,88 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           %reg1 = fptosi double 65.0 to i32
           %reg2 = call i32 @putchar(i32 %reg1)
           %reg3 = sitofp i32 %reg2 to double
+          ret i32 0
+        }
+      EOD
+    end
+  end
+
+  describe "class definition" do
+    it "should deifne a struct type" do
+      ll = to_ll(<<~EOD)
+        class A end
+      EOD
+      expect(ll[/^%"A"(.*?)^\}\n/m]).to eq(<<~EOD)
+        %"A" = type { i32 }
+        define %"A"* @"A.new"() {
+          %size = ptrtoint %"A"* getelementptr (%"A", %"A"* null, i32 1) to i64
+          %raw_addr = call i8* @GC_malloc(i64 %size)
+          %addr = bitcast i8* %raw_addr to %"A"*
+
+          call void @llvm.memset.p0i8.i64(i8* %raw_addr, i8 0, i64 %size, i32 4, i1 false)
+
+          %id_addr = getelementptr inbounds %"A", %"A"* %addr, i32 0, i32 0
+          store i32 1, i32* %id_addr
+
+          ret %"A"* %addr
+        }
+      EOD
+    end
+  end
+
+  describe "instance creation" do
+    it "should call .new" do
+      ll = to_ll(<<~EOD)
+        class A end
+        A.new();
+      EOD
+      expect(ll).to include(<<~EOD)
+        define i32 @main() {
+          call void @GC_init()
+          %reg1 = call %"A*" %"A.new"()
+          ret i32 0
+        }
+      EOD
+    end
+  end
+
+  describe "method definition" do
+    it "should define a function" do
+      ll = to_ll(<<~EOD)
+        class A
+          def foo(x: Float) -> Float {
+            return 123;
+          }
+        end
+      EOD
+      expect(ll).to include(<<~EOD)
+        define double @"A#foo"(%"A"* self, double %x) {
+          ret double 123.0
+          ret double 0.0
+        }
+      EOD
+    end
+  end
+
+  describe "method call" do
+    it "should call a function" do
+      ll = to_ll(<<~EOD)
+        class A
+          def foo(x: Float) -> Float {
+            return 123;
+          }
+        end
+        A.new().foo(234);
+      EOD
+      expect(ll).to include(<<~EOD)
+        define i32 @main() {
+          call void @GC_init()
+          %reg1 = call %"A*" %"A.new"()
+          %reg2 = call double %"A#foo"(double 234.0)
           ret i32 0
         }
       EOD
@@ -50,6 +131,7 @@ describe "ll emitter:" do
           ret double 0.0
         }
         define i32 @main() {
+          call void @GC_init()
           %reg1 = call double @foo(double 123.0, double 456.0)
           ret i32 0
         }
@@ -68,6 +150,7 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           %reg1 = fcmp olt double 1.0, 2.0
           br i1 %reg1, label %Then1, label %EndIf1
         Then1:
@@ -86,13 +169,14 @@ describe "ll emitter:" do
     it "should expand into loop" do
       ll = to_ll(<<~EOD)
         extern i32 putchar(i32);
-        for (x; 65 ... 70 ; 2) {
+        for (x: Float; 65 ... 70 ; 2) {
           putchar(x);
         }
       EOD
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
         define i32 @main() {
+          call void @GC_init()
           br label %For1
         For1:
           br label %Loop1
@@ -125,6 +209,7 @@ describe "ll emitter:" do
         expect(ll).to eq(<<~EOD)
           declare i32 @putchar(i32)
           define i32 @main() {
+            call void @GC_init()
             %reg1 = fadd double 60.0, 5.0
             %reg2 = fptosi double %reg1 to i32
             %reg3 = call i32 @putchar(i32 %reg2)
@@ -150,6 +235,7 @@ describe "ll emitter:" do
             ret double 0.0
           }
           define i32 @main() {
+            call void @GC_init()
             %reg2 = call double @foo(double 3.0)
             ret i32 0
           }
