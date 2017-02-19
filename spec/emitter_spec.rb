@@ -46,7 +46,7 @@ describe "ll emitter:" do
       ll = to_ll(<<~EOD)
         class A end
       EOD
-      expect(ll).to include(<<~EOD)
+      expect(ll[/^%"A"(.*?)^\}\n/m]).to eq(<<~EOD)
         %"A" = type { i32 }
         define %"A"* @"A.new"() {
           %size = ptrtoint %"A"* getelementptr (%"A", %"A"* null, i32 1) to i64
