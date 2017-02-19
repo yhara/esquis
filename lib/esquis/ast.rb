@@ -677,7 +677,7 @@ module Esquis
       end
 
       def merge(toplevel_funcs: @toplevel_funcs, local_vars: @local_vars,
-                classes: @constants)
+                classes: @classes)
         return Env.new(toplevel_funcs, local_vars, classes)
       end
 
