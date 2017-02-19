@@ -69,16 +69,8 @@ module Esquis
       props :defs, :main
 
       def init
-        @funcs = defs.select{|x| x.is_a?(Defun)}
-          .map{|x| [x.name, x]}
-          .to_h
-        @externs = defs.select{|x| x.is_a?(Extern)}
-          .map{|x| [x.name, x]}
-          .to_h
-
         check_duplicated_defun
       end
-      attr_reader :funcs, :externs
 
       # Return LLVM bitcode as String
       # without_header: for testing
