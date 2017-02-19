@@ -53,8 +53,27 @@ describe "Esquis" do
       }.to raise_error(Esquis::Ast::TypeMismatch)
     end
 
-    it "should check arity of method call"
-    it "should check arg types of method call"
+    it "should check arity of method call" do
+      expect {
+        to_ll(<<~EOD)
+          class A
+            def foo() -> Float { 1; }
+          end
+          A.new().foo(1);
+        EOD
+      }.to raise_error(Esquis::Ast::ArityMismatch)
+    end
+
+    it "should check arg types of method call" do
+      expect {
+        to_ll(<<~EOD)
+          class A
+            def foo(x: Float) -> Float { 1; }
+          end
+          A.new().foo(1 == 1);
+        EOD
+      }.to raise_error(Esquis::Ast::TypeMismatch)
+    end
 
     it "should check condition of if-stmt is Bool" do
       expect {

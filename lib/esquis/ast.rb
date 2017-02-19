@@ -197,6 +197,10 @@ module Esquis
       end
       attr_reader :instance_methods
 
+      def full_name
+        name
+      end
+
       def add_type!(env)
         @ty ||= begin
           defmethods.each{|x| x.add_type!(env, self)}
@@ -277,6 +281,10 @@ module Esquis
           @cls = cls
           super(env)
         end
+      end
+
+      def full_name
+        @cls.full_name + "#" + name
       end
 
       def to_ll
@@ -583,7 +591,17 @@ module Esquis
           else
             args.each{|x| x.add_type!(env)}
             @method = env.fetch_instance_method(receiver_ty, method_name)
-            # TODO: check arity and arg types
+            if args.length != @method.arity
+              raise ArityMismatch,
+                "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
+            end
+            @method.params.zip(args) do |param, arg|
+              if param.ty != arg.ty
+                raise TypeMismatch,
+                  "parameter #{param.name} of #{@method.full_name} "
+                  "is #{param.ty} but got #{arg.ty}"
+              end
+            end
             @method.ty.ret_ty
           end
         end
