@@ -556,11 +556,7 @@ module Esquis
           end
         end
 
-        ret_type_name = case @func.ty.ret_ty
-                        when TyRaw["Int"], TyRaw["i32"] then "i32"
-                        when TyRaw["Float"], TyRaw["double"] then "double"
-                        else raise "type #{type} is not supported"
-                        end
+        ret_type_name = @func.ty.ret_ty.llvm_type
         r = newreg
         ll << "  #{r} = call #{ret_type_name} @#{name}(#{args_and_types.join(', ')})"
         case ret_type_name
