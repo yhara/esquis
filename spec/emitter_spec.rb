@@ -67,16 +67,15 @@ describe "ll emitter:" do
     it "should define a function" do
       ll = to_ll(<<~EOD)
         class A
-          def foo(x: Int) -> Int {
+          def foo(x: Float) -> Float {
             return 123;
           }
         end
       EOD
-      # FIXME: `i32 123.0` is invalid .ll
       expect(ll).to include(<<~EOD)
-        define i32 @"A#foo"(%"A"* self, i32 %x) {
-          ret i32 123.0
-          ret i32 0
+        define double @"A#foo"(%"A"* self, double %x) {
+          ret double 123.0
+          ret double 0.0
         }
       EOD
     end
@@ -132,7 +131,7 @@ describe "ll emitter:" do
     it "should expand into loop" do
       ll = to_ll(<<~EOD)
         extern i32 putchar(i32);
-        for (x: Int; 65 ... 70 ; 2) {
+        for (x: Float; 65 ... 70 ; 2) {
           putchar(x);
         }
       EOD

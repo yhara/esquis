@@ -37,7 +37,7 @@ describe "Esquis" do
     it "should check arity when calling toplevel func" do
       expect {
         to_ll(<<~EOD)
-          def foo(x: Int) -> Int { 1; }
+          def foo(x: Float) -> Float { 1; }
           foo(1, 2);
         EOD
       }.to raise_error(Esquis::Ast::ArityMismatch)

@@ -592,7 +592,9 @@ module Esquis
         @ty ||= begin
           case @value
           when Float then TyRaw["Float"]
-          when Integer then TyRaw["Int"]
+          when Integer 
+            # Currently, all numbers in Esquis are treated as Float
+            TyRaw["Float"]
           else raise
           end
         end
