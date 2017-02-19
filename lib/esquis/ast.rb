@@ -623,10 +623,13 @@ module Esquis
         @toplevel_funcs, @local_vars = toplevel_funcs, local_vars
       end
 
+      def merge(toplevel_funcs: @toplevel_funcs, local_vars: @local_vars)
+        return Env.new(toplevel_funcs, local_vars)
+      end
+
       # @param lvars [{String => Ty}]
       def add_local_vars(lvars)
-        return Env.new(@toplevel_funcs,
-                       @local_vars.merge(lvars))
+        return merge(local_vars: lvars)
       end
 
       def find_local_var(name)
@@ -643,7 +646,7 @@ module Esquis
       # @return [Env]
       def add_toplevel_func(name, defun)
         raise if @toplevel_funcs.key?(name)
-        return Env.new(@toplevel_funcs.merge(name => defun))
+        return merge(toplevel_funcs: @toplevel_funcs.merge(name => defun))
       end
 
       # @return [Ast::Defun or nil]
