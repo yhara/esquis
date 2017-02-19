@@ -43,7 +43,14 @@ describe "Esquis" do
       }.to raise_error(Esquis::Ast::ArityMismatch)
     end
 
-    it "should check arg types when calling toplevel func"
+    it "should check arg types when calling toplevel func" do
+      expect {
+        to_ll(<<~EOD)
+          def foo(x: Float) -> Float { 1; }
+          foo(1 == 2);
+        EOD
+      }.to raise_error(Esquis::Ast::TypeMismatch)
+    end
 
     it "should check arity of method call"
     it "should check arg types of method call"

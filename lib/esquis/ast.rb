@@ -525,6 +525,15 @@ module Esquis
             raise ArityMismatch,
               "#{name} takes #{@func.arity} args but got #{args.length} args"
           end
+          @func.params.zip(args) do |param, arg|
+            if param.ty != arg.ty &&
+               # Temporarily skipping type check for external funcs
+               param.ty != TyRaw["i32"]
+              raise TypeMismatch,
+                "parameter #{param.name} of #{name} is #{param.ty}"+
+                " but got #{arg.ty}"
+            end
+          end
           @func.ty.ret_ty
         end
       end
