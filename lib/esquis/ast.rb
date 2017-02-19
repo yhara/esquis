@@ -542,21 +542,21 @@ module Esquis
         end
       end
 
-      def to_ll_r(funname: name, funmeth: @func, arg_exprs: @args)
+      def to_ll_r(funname: name, funmeth: @func, self_ty: nil, arg_exprs: @args)
         ll = []
         args_and_types = []
+        param_tys = funmeth.ty.param_tys
+        param_tys.unshift(self_ty) if self_ty
         arg_exprs.map{|x| x.to_ll_r}.each.with_index do |(arg_ll, arg_r), i|
-          type = funmeth.ty.param_tys[i]
+          type = param_tys[i]
           ll.concat(arg_ll)
           case type
           when TyRaw["Int"], TyRaw["i32"]
             rr = newreg
             ll << "  #{rr} = fptosi double #{arg_r} to i32"
             args_and_types << "i32 #{rr}"
-          when TyRaw["Float"], TyRaw["double"]
-            args_and_types << "double #{arg_r}"
           else
-            raise "type #{type.inspect} is not supported"
+            args_and_types << "#{type.llvm_type} #{arg_r}"
           end
         end
 
@@ -608,16 +608,16 @@ module Esquis
       end
 
       def to_ll_r
-        receiver_ll, receiver_r = receiver_expr.to_ll_r
-        
         ll = []
-        ll.concat receiver_ll
-        m = if receiver_expr.ty == TyRaw["Class"]
-              %Q{"#{receiver_expr.name}.#{method_name}"}
-            else
-              %Q{"#{receiver_expr.ty.name}##{method_name}"}
-            end
-        call_ll, call_r = super(funname: m, funmeth: @method, arg_exprs: args)
+        if receiver_expr.ty == TyRaw["Class"]
+          m = %Q{"#{receiver_expr.name}.#{method_name}"}
+          call_ll, call_r = super(funname: m, funmeth: @method, arg_exprs: args)
+        else
+          m = %Q{"#{receiver_expr.ty.name}##{method_name}"}
+          call_ll, call_r = super(funname: m, funmeth: @method,
+                                  self_ty: receiver_expr.ty,
+                                  arg_exprs: [receiver_expr] + args)
+        end
         ll.concat call_ll
         return ll, call_r
       end

@@ -75,6 +75,17 @@ describe Esquis do
   end
 
   describe 'programs' do
+    it 'defclass' do
+      src = <<~EOD
+        extern i32 putchar(i32);
+        class A
+          def hi(x: Float) -> Float { putchar(x + 65); }
+        end
+        A.new().hi(0);
+      EOD
+      expect(run(src)).to eq("A")
+    end
+
     it 'defun' do
       src = <<-EOD
         extern i32 putchar(i32);
