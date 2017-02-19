@@ -70,10 +70,10 @@ describe "ll emitter:" do
         class A end
         A.new();
       EOD
-      expect(ll).to include(<<~EOD)
+      expect(ll[/^define i32 @main(.*?)^}\n/m]).to eq(<<~EOD)
         define i32 @main() {
           call void @GC_init()
-          %reg1 = call %"A*" %"A.new"()
+          %reg1 = call %"A"* @"A.new"()
           ret i32 0
         }
       EOD
@@ -111,8 +111,8 @@ describe "ll emitter:" do
       expect(ll).to include(<<~EOD)
         define i32 @main() {
           call void @GC_init()
-          %reg1 = call %"A*" %"A.new"()
-          %reg2 = call double %"A#foo"(double 234.0)
+          %reg1 = call %"A"* @"A.new"()
+          %reg2 = call double @"A#foo"(double 234.0)
           ret i32 0
         }
       EOD

@@ -542,7 +542,7 @@ module Esquis
         end
       end
 
-      def to_ll_r(funname: "@#{name}", funmeth: @func, arg_exprs: @args)
+      def to_ll_r(funname: name, funmeth: @func, arg_exprs: @args)
         ll = []
         args_and_types = []
         arg_exprs.map{|x| x.to_ll_r}.each.with_index do |(arg_ll, arg_r), i|
@@ -562,7 +562,7 @@ module Esquis
 
         ret_type_name = funmeth.ty.ret_ty.llvm_type
         r = newreg
-        ll << "  #{r} = call #{ret_type_name} #{funname}(#{args_and_types.join(', ')})"
+        ll << "  #{r} = call #{ret_type_name} @#{funname}(#{args_and_types.join(', ')})"
         case ret_type_name
         when "i32"
           rr = newreg
@@ -613,9 +613,9 @@ module Esquis
         ll = []
         ll.concat receiver_ll
         m = if receiver_expr.ty == TyRaw["Class"]
-              %Q{%"#{receiver_expr.name}.#{method_name}"}
+              %Q{"#{receiver_expr.name}.#{method_name}"}
             else
-              %Q{%"#{receiver_expr.ty.name}##{method_name}"}
+              %Q{"#{receiver_expr.ty.name}##{method_name}"}
             end
         call_ll, call_r = super(funname: m, funmeth: @method, arg_exprs: args)
         ll.concat call_ll
