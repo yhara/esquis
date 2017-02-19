@@ -289,7 +289,7 @@ module Esquis
 
       def to_ll
         return super(funname: %Q{"#{@cls.name}##{name}"},
-                     self_param: %Q{%"#{@cls.name}"* self})
+                     self_param: %Q{%"#{@cls.name}"* %self})
       end
     end
 

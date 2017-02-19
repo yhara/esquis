@@ -90,7 +90,7 @@ describe "ll emitter:" do
         end
       EOD
       expect(ll).to include(<<~EOD)
-        define double @"A#foo"(%"A"* self, double %x) {
+        define double @"A#foo"(%"A"* %self, double %x) {
           ret double 123.0
           ret double 0.0
         }
