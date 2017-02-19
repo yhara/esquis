@@ -63,6 +63,22 @@ describe "ll emitter:" do
     end
   end
 
+  describe "instance creation" do
+    it "should call .new" do
+      ll = to_ll(<<~EOD)
+        class A end
+        A.new();
+      EOD
+      expect(ll).to include(<<~EOD)
+        define i32 @main() {
+          call void @GC_init()
+          %reg1 = call %"A*" %"A.new"()
+          ret i32 0
+        }
+      EOD
+    end
+  end
+
   describe "method definition" do
     it "should define a function" do
       ll = to_ll(<<~EOD)
@@ -76,6 +92,27 @@ describe "ll emitter:" do
         define double @"A#foo"(%"A"* self, double %x) {
           ret double 123.0
           ret double 0.0
+        }
+      EOD
+    end
+  end
+
+  describe "method call" do
+    it "should call a function" do
+      ll = to_ll(<<~EOD)
+        class A
+          def foo(x: Float) -> Float {
+            return 123;
+          }
+        end
+        A.new().foo(234);
+      EOD
+      expect(ll).to include(<<~EOD)
+        define i32 @main() {
+          call void @GC_init()
+          %reg1 = call %"A*" %"A.new"()
+          %reg2 = call double %"A#foo"(double 234.0)
+          ret i32 0
         }
       EOD
     end

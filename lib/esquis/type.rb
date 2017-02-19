@@ -17,7 +17,7 @@ module Esquis
 
       attr_writer :llvm_type
       def llvm_type
-        @llvm_type or raise "Cannot convert #{self} to llvm"
+        @llvm_type || %Q{%"#{name}*"}
       end
 
       def inspect

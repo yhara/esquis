@@ -97,7 +97,7 @@ module Esquis
           defs.each do |x|
             case x
             when DefClass
-              # TODO
+              newenv = newenv.add_class(x.name, x)
             when Defun, Extern
               newenv = newenv.add_toplevel_func(x.name, x)
             end
@@ -179,16 +179,20 @@ module Esquis
 
     class DefClass < Node
       props :name, :defmethods
+      attr_reader :instance_ty
       @@class_id = 0
 
       def init
         @class_id = (@@class_id += 1)
+        @instance_ty = TyRaw[name]
+        @instance_methods = defmethods.map{|x| [x.name, x]}.to_h
       end
+      attr_reader :instance_methods
 
       def add_type!(env)
         @ty ||= begin
           defmethods.each{|x| x.add_type!(env, self)}
-          TyRaw[name]
+          TyRaw["Class"]
         end
       end
 
@@ -496,23 +500,6 @@ module Esquis
       end
     end
 
-    class MethodCall < Node
-      props :receiver_expr, :method_name, :args
-
-      def add_type!(env)
-        @ty ||= begin
-          receiver_ty = receiver_expr.add_type!(env)
-          method = env.find_method(receiver_ty, method_name)
-          # TODO: check arity and arg types
-          method.return_ty
-        end
-      end
-
-      def to_ll_r
-        TODO
-      end
-    end
-
     class FunCall < Node
       props :name, :args
 
@@ -539,11 +526,11 @@ module Esquis
         end
       end
 
-      def to_ll_r
+      def to_ll_r(funname: "@#{name}", funmeth: @func, arg_exprs: @args)
         ll = []
         args_and_types = []
-        @args.map{|x| x.to_ll_r}.each.with_index do |(arg_ll, arg_r), i|
-          type = @func.ty.param_tys[i]
+        arg_exprs.map{|x| x.to_ll_r}.each.with_index do |(arg_ll, arg_r), i|
+          type = funmeth.ty.param_tys[i]
           ll.concat(arg_ll)
           case type
           when TyRaw["Int"], TyRaw["i32"]
@@ -557,19 +544,56 @@ module Esquis
           end
         end
 
-        ret_type_name = @func.ty.ret_ty.llvm_type
+        ret_type_name = funmeth.ty.ret_ty.llvm_type
         r = newreg
-        ll << "  #{r} = call #{ret_type_name} @#{name}(#{args_and_types.join(', ')})"
+        ll << "  #{r} = call #{ret_type_name} #{funname}(#{args_and_types.join(', ')})"
         case ret_type_name
         when "i32"
           rr = newreg
           ll << "  #{rr} = sitofp i32 #{r} to double"
           return ll, rr
-        when "double"
+        when "double", /%(.*)\*/
           return ll, r
         else
-          raise "type #{type} is not supported"
+          raise "type #{ret_type_name} is not supported as a return value"
         end
+      end
+    end
+
+    class MethodCall < FunCall
+      props :receiver_expr, :method_name, :args
+
+      def add_type!(env)
+        @ty ||= begin
+          receiver_ty = receiver_expr.add_type!(env)
+          if receiver_ty == TyRaw["Class"]
+            # Class method call (only .new is currently supported)
+            cls = env.fetch_class(receiver_expr.name)
+            @method = Defun.new("new", [], cls.name, [])
+            @method.add_type!(env)
+            cls.instance_ty
+          else
+            args.each{|x| x.add_type!(env)}
+            @method = env.fetch_instance_method(receiver_ty, method_name)
+            # TODO: check arity and arg types
+            @method.ty.ret_ty
+          end
+        end
+      end
+
+      def to_ll_r
+        receiver_ll, receiver_r = receiver_expr.to_ll_r
+        
+        ll = []
+        ll.concat receiver_ll
+        m = if receiver_expr.ty == TyRaw["Class"]
+              %Q{%"#{receiver_expr.name}.#{method_name}"}
+            else
+              %Q{%"#{receiver_expr.ty.name}##{method_name}"}
+            end
+        call_ll, call_r = super(funname: m, funmeth: @method, arg_exprs: args)
+        ll.concat call_ll
+        return ll, call_r
       end
     end
 
@@ -580,6 +604,8 @@ module Esquis
         @ty ||= begin
           if (ty = env.find_local_var(name))
             ty
+          elsif (cls = env.find_class(name))
+            TyRaw["Class"]
           else
             raise "undefined variable: #{name}"
           end
@@ -619,12 +645,14 @@ module Esquis
     end
 
     class Env
-      def initialize(toplevel_funcs = {}, local_vars = {})
-        @toplevel_funcs, @local_vars = toplevel_funcs, local_vars
+      def initialize(toplevel_funcs = {}, local_vars = {}, classes = {})
+        @toplevel_funcs, @local_vars, @classes =
+          toplevel_funcs, local_vars, classes
       end
 
-      def merge(toplevel_funcs: @toplevel_funcs, local_vars: @local_vars)
-        return Env.new(toplevel_funcs, local_vars)
+      def merge(toplevel_funcs: @toplevel_funcs, local_vars: @local_vars,
+                classes: @constants)
+        return Env.new(toplevel_funcs, local_vars, classes)
       end
 
       # @param lvars [{String => Ty}]
@@ -634,11 +662,6 @@ module Esquis
 
       def find_local_var(name)
         return @local_vars[name]
-      end
-
-      # @return [Ast::Defun]
-      def find_method(receiver_ty, method_name)
-
       end
 
       # @param name [String]
@@ -652,6 +675,24 @@ module Esquis
       # @return [Ast::Defun or nil]
       def find_toplevel_func(name)
         @toplevel_funcs[name]
+      end
+
+      def add_class(name, ty)
+        return merge(classes: @classes.merge(name => ty))
+      end
+
+      def find_class(name)
+        @classes[name]
+      end
+
+      def fetch_class(name)
+        @classes[name] or raise "Undefined class #{name}"
+      end
+
+      # @return [DefMethod] 
+      def fetch_instance_method(receiver_ty, method_name)
+        cls = fetch_class(receiver_ty.name)
+        return cls.instance_methods.fetch(method_name)
       end
     end
   end
