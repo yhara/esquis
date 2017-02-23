@@ -33,8 +33,8 @@ def mandleconverge(real: Float, imag: Float) -> Float {
 
 def mandelhelp(xmin: Float, xmax: Float, xstep: Float,
                ymin: Float, ymax: Float, ystep: Float) -> Float {
-  for (y ; ymin ... ymax ; ystep) {
-    for (x ; xmin ... xmax ; xstep) {
+  for (y: Float ; ymin ... ymax ; ystep) {
+    for (x: Float ; xmin ... xmax ; xstep) {
        printdensity(mandleconverge(x,y));
     }
     putchar(10);
