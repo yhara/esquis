@@ -310,6 +310,10 @@ module Esquis
       def to_ll
         return ["#{@ty.llvm_type} %#{name}"]
       end
+
+      def inspect
+        "#<Param #{type_name} #{name}>"
+      end
     end
 
     class Extern < Node
@@ -649,6 +653,10 @@ module Esquis
 
       def to_ll_r
         return [], "%#{name}"
+      end
+
+      def inspect
+        "#<VarRef #{name}>"
       end
     end
 
