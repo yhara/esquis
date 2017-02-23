@@ -60,8 +60,10 @@ describe Esquis do
   end
 
   it 'should parse example program' do
-    ast = Esquis::Parser.new.parse(MANDEL)
-    expect(ast).to be_kind_of(Esquis::Ast::Node)
+    expect {
+      ast = Esquis::Parser.new.parse(MANDEL)
+      ast.to_ll_str
+    }.not_to raise_error
   end
 
   describe '.run' do

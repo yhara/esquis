@@ -700,7 +700,7 @@ module Esquis
 
       # @param lvars [{String => Ty}]
       def add_local_vars(lvars)
-        return merge(local_vars: lvars)
+        return merge(local_vars: @local_vars.merge(lvars))
       end
 
       def find_local_var(name)
