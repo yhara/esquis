@@ -274,6 +274,10 @@ module Esquis
         ll << "}"
         return ll
       end
+
+      def inspect
+        "#<Defun #{@name}(#{@params})>"
+      end
     end
 
     class DefMethod < Defun
@@ -327,6 +331,10 @@ module Esquis
         [
            "declare #{@ty.ret_ty.llvm_type} @#{@name}(#{param_types.join ','})"
         ]
+      end
+
+      def inspect
+        "#<Extern #{@name}(#{@params})>"
       end
     end
 
