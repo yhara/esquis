@@ -53,6 +53,14 @@ describe "Esquis" do
       }.to raise_error(Esquis::Ast::TypeMismatch)
     end
 
+    it "should pass recursive toplevel func" do
+      expect {
+        to_ll(<<~EOD)
+          def foo(x: Float) -> Float { foo(x); }
+        EOD
+      }.not_to raise_error
+    end
+
     it "should check arity of method call" do
       expect {
         to_ll(<<~EOD)
@@ -73,6 +81,16 @@ describe "Esquis" do
           A.new().foo(1 == 1);
         EOD
       }.to raise_error(Esquis::Ast::TypeMismatch)
+    end
+
+    it "should pass recursive method" do
+      expect {
+        to_ll(<<~EOD)
+          class A
+            def foo(x: Float) -> Float { A.new().foo(x); }
+          end
+        EOD
+      }.not_to raise_error
     end
 
     it "should check condition of if-stmt is Bool" do

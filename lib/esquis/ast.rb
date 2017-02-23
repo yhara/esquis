@@ -245,15 +245,16 @@ module Esquis
       end
 
       def add_type!(env)
-        @ty ||= begin
-          params.each{|x| x.add_type!(env)}
+        return @ty if @ty
 
-          lvars = params.map{|x| [x.name, x.ty]}.to_h
-          newenv = env.add_local_vars(lvars)
-          body_stmts.each{|x| x.add_type!(newenv)}
+        params.each{|x| x.add_type!(env)}
+        @ty = TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
 
-          TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
-        end
+        lvars = params.map{|x| [x.name, x.ty]}.to_h
+        newenv = env.add_local_vars(lvars)
+        body_stmts.each{|x| x.add_type!(newenv)}
+
+        @ty
       end
 
       def to_ll(funname: name, self_param: nil)
