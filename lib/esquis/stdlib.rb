@@ -8,10 +8,10 @@ module Esquis
       declare i32 @printf(i8*, ...)
       ;declare i32 @putchar(i32)
 
-      @putd_tmpl = private unnamed_addr constant [3 x i8] c"%f\00"
-      define void @putd(double %num) {
+      @putd_tmpl = private unnamed_addr constant [3 x i8] c"%d\00"
+      define void @putd(i32 %num) {
         %putd1 = getelementptr inbounds [3 x i8], [3 x i8]* @putd_tmpl, i32 0, i32 0
-        call i32 (i8*, ...) @printf(i8* %putd1, double %num)
+        call i32 (i8*, ...) @printf(i8* %putd1, i32 %num)
         ret void
       }
 
