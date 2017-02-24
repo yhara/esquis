@@ -2,7 +2,7 @@ require 'set'
 require 'esquis/type'
 
 module Esquis
-  class Ast
+  module Ast
     include Esquis::Type
 
     # for unit tests
@@ -84,16 +84,20 @@ module Esquis
       def to_ll_str(without_header: false)
         Node.reset
 
-        add_type!(Env.new)
+        env = Env.new
+        Esquis::Stdlib::TOPLEVEL_FUNCS.each do |k, v|
+          env = env.add_toplevel_func(k, v)
+        end
+        add_type!(env)
 
-        header = (without_header ? [] : LL_HEADER)
-        return (header + to_ll).join("\n") + "\n"
+        header = (without_header ? "" : Stdlib::LL_STDLIB + LL_HEADER)
+        return header + to_ll.join("\n") + "\n"
       end
-      LL_HEADER = [
-        "declare void @GC_init()",
-        "declare i8* @GC_malloc(i64)",
-        "declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1)",
-      ]
+      LL_HEADER = <<~EOD
+        declare void @GC_init()
+        declare i8* @GC_malloc(i64)
+        declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1)
+      EOD
 
       private
 

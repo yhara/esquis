@@ -4,6 +4,8 @@ require 'pp'
 require 'esquis/props'
 
 require 'esquis/ast'
+require 'esquis/stdlib'
+require 'esquis/type'
 require 'esquis/parser'
 
 module Esquis
