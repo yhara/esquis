@@ -579,7 +579,11 @@ module Esquis
 
         ret_type_name = funmeth.ty.ret_ty.llvm_type
         r = newreg
-        ll << "  #{r} = call #{ret_type_name} @#{funname}(#{args_and_types.join(', ')})"
+        if ret_type_name == "void"
+          ll << "  call #{ret_type_name} @#{funname}(#{args_and_types.join(', ')})"
+        else
+          ll << "  #{r} = call #{ret_type_name} @#{funname}(#{args_and_types.join(', ')})"
+        end
         case ret_type_name
         when "i32"
           rr = newreg
@@ -587,6 +591,8 @@ module Esquis
           return ll, rr
         when "double", /%(.*)\*/
           return ll, r
+        when "void"
+          return ll, nil
         else
           raise "type #{ret_type_name} is not supported as a return value"
         end
