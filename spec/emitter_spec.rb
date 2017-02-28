@@ -72,11 +72,19 @@ describe "ll emitter:" do
             1 + 1;
           }
         end
+        A.new(2);
       EOD
       expect(ll[/^define void @"A#initialize"(.*?)^\}\n/m]).to eq(<<~EOD)
         define void @"A#initialize"(%"A"* %self, double %"@x") {
           %reg1 = fadd double 1.0, 1.0
           ret void 
+        }
+      EOD
+      expect(ll[/^define i32 @main(.*?)^}\n/m]).to eq(<<~EOD)
+        define i32 @main() {
+          call void @GC_init()
+          %reg2 = call %"A"* @"A.new"(double 2.0)
+          ret i32 0
         }
       EOD
     end

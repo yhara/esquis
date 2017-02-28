@@ -189,7 +189,6 @@ module Esquis
 
     class DefClass < Node
       props :name, :defmethods
-      attr_reader :instance_ty
 
       def self.reset; @@class_id = 0; end
       reset
@@ -197,7 +196,6 @@ module Esquis
       def init
         @class_id = (@@class_id += 1)
         @instance_ty = TyRaw[name]
-        @instance_methods = defmethods.map{|x| [x.name, x]}.to_h
 
         @initialize = defmethods.find{|x| x.is_a?(DefInitialize)}
         if @initialize.nil?
@@ -205,8 +203,13 @@ module Esquis
           @defmethods << @initialize
         end
         @ivars = @initialize.ivars
+
+        @new = DefMethod.new("new", @initialize.params, @name, [])
+        @class_methods = {"new" => @new}
+
+        @instance_methods = defmethods.map{|x| [x.name, x]}.to_h
       end
-      attr_reader :instance_methods
+      attr_reader :instance_ty, :class_methods, :instance_methods
 
       def full_name
         name
@@ -214,6 +217,8 @@ module Esquis
 
       def add_type!(env)
         @ty ||= begin
+          @new.add_type!(env, self)
+
           defmethods.each{|x| x.add_type!(env, self)}
           TyRaw["Class"]
         end
@@ -635,26 +640,24 @@ module Esquis
           receiver_ty = receiver_expr.add_type!(env)
           if receiver_ty == TyRaw["Class"]
             # Class method call (only .new is currently supported)
-            cls = env.fetch_class(receiver_expr.name)
-            @method = Defun.new("new", [], cls.name, [])
-            @method.add_type!(env)
-            cls.instance_ty
+            @method = env.fetch_class_method(receiver_expr.name, "new")
           else
-            args.each{|x| x.add_type!(env)}
             @method = env.fetch_instance_method(receiver_ty, method_name)
-            if args.length != @method.arity
-              raise ArityMismatch,
-                "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
-            end
-            @method.params.zip(args) do |param, arg|
-              if param.ty != arg.ty
-                raise TypeMismatch,
-                  "parameter #{param.name} of #{@method.full_name} "
-                  "is #{param.ty} but got #{arg.ty}"
-              end
-            end
-            @method.ty.ret_ty
           end
+          args.each{|x| x.add_type!(env)}
+
+          if args.length != @method.arity
+            raise ArityMismatch,
+              "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
+          end
+          @method.params.zip(args) do |param, arg|
+            if param.ty != arg.ty
+              raise TypeMismatch,
+                "parameter #{param.name} of #{@method.full_name} "+
+                "is #{param.ty} but got #{arg.ty.inspect}"
+            end
+          end
+          @method.ty.ret_ty
         end
       end
 
@@ -774,6 +777,12 @@ module Esquis
       def fetch_instance_method(receiver_ty, method_name)
         cls = fetch_class(receiver_ty.name)
         return cls.instance_methods.fetch(method_name)
+      end
+
+      # @return [DefMethod] 
+      def fetch_class_method(cls_name, method_name)
+        cls = fetch_class(cls_name)
+        return cls.class_methods.fetch(method_name)
       end
     end
   end
