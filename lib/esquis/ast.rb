@@ -198,6 +198,13 @@ module Esquis
         @class_id = (@@class_id += 1)
         @instance_ty = TyRaw[name]
         @instance_methods = defmethods.map{|x| [x.name, x]}.to_h
+
+        @initialize = defmethods.find{|x| x.is_a?(DefInitialize)}
+        if @initialize.nil?
+          @initialize = DefInitialize.new([], [])
+          @defmethods << @initialize
+        end
+        @ivars = @initialize.ivars
       end
       attr_reader :instance_methods
 
@@ -214,10 +221,15 @@ module Esquis
 
       def to_ll
         t = %Q{"#{name}"}
-        n = %Q{"#{name}.new"}
+        func_new = %Q{"#{name}.new"}
+        func_initialize = %Q{"#{name}#initialize"}
+        new_args = @ivars.map{|x|
+          "#{x.ty.llvm_type} #{x.name.sub('@', '%')}"
+        }
+        init_args = ["%#{t}* %addr"] + new_args
         [
           "%#{t} = type { i32 }",
-          "define %#{t}* @#{n}() {",
+          "define %#{t}* @#{func_new}(#{new_args.join ', '}) {",
           "  %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
           "  %raw_addr = call i8* @GC_malloc(i64 %size)",
           "  %addr = bitcast i8* %raw_addr to %#{t}*",
@@ -226,7 +238,7 @@ module Esquis
           "",
           "  %id_addr = getelementptr inbounds %#{t}, %#{t}* %addr, i32 0, i32 0",
           "  store i32 #{@class_id}, i32* %id_addr",
-          "",
+          "  call void @#{func_initialize}(#{init_args.join ', '})",
           "  ret %#{t}* %addr",
           "}",
           *defmethods.flat_map{|x| x.to_ll}
@@ -269,7 +281,8 @@ module Esquis
         zero = case ret_t
                when "double" then "0.0"
                when "i32" then "0"
-               else raise "type #{ret_type_name} not supported"
+               when "void" then ""
+               else raise "type #{ret_type_name.inspect} not supported"
                end
         ll = []
         ll << "define #{ret_t} @#{funname}(#{param_list.join ', '}) {"
@@ -302,6 +315,17 @@ module Esquis
       end
     end
 
+    class DefInitialize < DefMethod
+      props :params, :body_stmts
+
+      def name; "initialize"; end
+      def ret_type_name; "Void"; end
+
+      def ivars
+        params.select{|x| x.name.start_with?("@")}
+      end
+    end
+
     class Param < Node
       props :name, :type_name
 
@@ -312,7 +336,11 @@ module Esquis
       end
 
       def to_ll
-        return ["#{@ty.llvm_type} %#{name}"]
+        if name[0] == "@"
+          return [%Q{#{@ty.llvm_type} %"#{name}"}]
+        else
+          return ["#{@ty.llvm_type} %#{name}"]
+        end
       end
 
       def inspect

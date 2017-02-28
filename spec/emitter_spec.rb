@@ -57,8 +57,26 @@ describe "ll emitter:" do
 
           %id_addr = getelementptr inbounds %"A", %"A"* %addr, i32 0, i32 0
           store i32 1, i32* %id_addr
-
+          call void @"A#initialize"(%"A"* %addr)
           ret %"A"* %addr
+        }
+      EOD
+    end
+  end
+
+  describe "initialize" do
+    it "" do
+      ll = to_ll(<<~EOD)
+        class A
+          def initialize(@x: Float) {
+            1 + 1;
+          }
+        end
+      EOD
+      expect(ll[/^define void @"A#initialize"(.*?)^\}\n/m]).to eq(<<~EOD)
+        define void @"A#initialize"(%"A"* %self, double %"@x") {
+          %reg1 = fadd double 1.0, 1.0
+          ret void 
         }
       EOD
     end
