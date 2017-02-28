@@ -229,11 +229,12 @@ module Esquis
         func_new = %Q{"#{name}.new"}
         func_initialize = %Q{"#{name}#initialize"}
         new_args = @ivars.map{|x|
-          "#{x.ty.llvm_type} #{x.name.sub('@', '%')}"
+          %Q{#{x.ty.llvm_type} %"#{x.name}"}
         }
         init_args = ["%#{t}* %addr"] + new_args
+        struct_members = ["i32"] + @ivars.map{|x| x.ty.llvm_type}
         [
-          "%#{t} = type { i32 }",
+          "%#{t} = type { #{struct_members.join ', '} }",
           "define %#{t}* @#{func_new}(#{new_args.join ', '}) {",
           "  %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
           "  %raw_addr = call i8* @GC_malloc(i64 %size)",
@@ -278,7 +279,7 @@ module Esquis
         @ty
       end
 
-      def to_ll(funname: name, self_param: nil)
+      def to_ll(funname: name, self_param: nil, init_ll: nil)
         param_list = params.flat_map(&:to_ll)
         param_list.unshift(self_param) if self_param
 
@@ -291,6 +292,7 @@ module Esquis
                end
         ll = []
         ll << "define #{ret_t} @#{funname}(#{param_list.join ', '}) {"
+        ll.concat init_ll if init_ll
         ll.concat body_stmts.flat_map{|x| x.to_ll}
         ll << "  ret #{ret_t} #{zero}"
         ll << "}"
@@ -314,9 +316,10 @@ module Esquis
         @cls.full_name + "#" + name
       end
 
-      def to_ll
+      def to_ll(init_ll: nil)
         return super(funname: %Q{"#{@cls.name}##{name}"},
-                     self_param: %Q{%"#{@cls.name}"* %self})
+                     self_param: %Q{%"#{@cls.name}"* %self},
+                     init_ll: init_ll)
       end
     end
 
@@ -328,6 +331,19 @@ module Esquis
 
       def ivars
         params.select{|x| x.name.start_with?("@")}
+      end
+
+      def to_ll
+        t = %Q{"#{@cls.name}"}
+        init_ivars = ivars.flat_map.with_index(1){|ivar, i|
+          n = %Q{"#{ivar.name}"}
+          it = ivar.ty.llvm_type
+          [
+            "  %ivar#{i}_addr = getelementptr inbounds %#{t}, %#{t}* %self, i32 0, i32 #{i}",
+            "  store #{it} %#{n}, #{it}* %ivar#{i}_addr",
+          ]
+        } + [""]
+        return super(init_ll: init_ivars)
       end
     end
 

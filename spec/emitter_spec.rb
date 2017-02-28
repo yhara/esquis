@@ -44,11 +44,13 @@ describe "ll emitter:" do
   describe "class definition" do
     it "should deifne a struct type" do
       ll = to_ll(<<~EOD)
-        class A end
+        class A
+          def initialize(@x: Float) { }
+        end
       EOD
       expect(ll[/^%"A"(.*?)^\}\n/m]).to eq(<<~EOD)
-        %"A" = type { i32 }
-        define %"A"* @"A.new"() {
+        %"A" = type { i32, double }
+        define %"A"* @"A.new"(double %"@x") {
           %size = ptrtoint %"A"* getelementptr (%"A", %"A"* null, i32 1) to i64
           %raw_addr = call i8* @GC_malloc(i64 %size)
           %addr = bitcast i8* %raw_addr to %"A"*
@@ -57,7 +59,7 @@ describe "ll emitter:" do
 
           %id_addr = getelementptr inbounds %"A", %"A"* %addr, i32 0, i32 0
           store i32 1, i32* %id_addr
-          call void @"A#initialize"(%"A"* %addr)
+          call void @"A#initialize"(%"A"* %addr, double %"@x")
           ret %"A"* %addr
         }
       EOD
@@ -65,7 +67,7 @@ describe "ll emitter:" do
   end
 
   describe "initialize" do
-    it "" do
+    it "should store ivar values" do
       ll = to_ll(<<~EOD)
         class A
           def initialize(@x: Float) {
@@ -76,6 +78,9 @@ describe "ll emitter:" do
       EOD
       expect(ll[/^define void @"A#initialize"(.*?)^\}\n/m]).to eq(<<~EOD)
         define void @"A#initialize"(%"A"* %self, double %"@x") {
+          %ivar1_addr = getelementptr inbounds %"A", %"A"* %self, i32 0, i32 1
+          store double %"@x", double* %ivar1_addr
+
           %reg1 = fadd double 1.0, 1.0
           ret void 
         }
