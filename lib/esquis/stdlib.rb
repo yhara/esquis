@@ -4,7 +4,7 @@ module Esquis
   module Stdlib
     include Esquis::Ast
 
-    LL_STDLIB = <<~EOD
+    LL_STDLIB = <<~'EOD'
       declare i32 @printf(i8*, ...)
       ;declare i32 @putchar(i32)
 
