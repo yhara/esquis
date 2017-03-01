@@ -81,14 +81,14 @@ describe "ll emitter:" do
           %ivar1_addr = getelementptr inbounds %"A", %"A"* %self, i32 0, i32 1
           store double %"@x", double* %ivar1_addr
 
-          %reg1 = fadd double 1.0, 1.0
+          %reg3 = fadd double 1.0, 1.0
           ret void 
         }
       EOD
       expect(ll[/^define i32 @main(.*?)^}\n/m]).to eq(<<~EOD)
         define i32 @main() {
           call void @GC_init()
-          %reg2 = call %"A"* @"A.new"(double 2.0)
+          %reg4 = call %"A"* @"A.new"(double 2.0)
           ret i32 0
         }
       EOD

@@ -155,6 +155,8 @@ rule
     method_call:
         expression '.' IDENT '(' opt_args ')'
       { Ast::MethodCall.new(val[0], val[2], val[4]) }
+      | expression '.' IDENT
+      { Ast::MethodCall.new(val[0], val[2], []) }
 
     fcall:
         IDENT '(' opt_args ')'

@@ -207,7 +207,15 @@ module Esquis
         @new = DefMethod.new("new", @initialize.params, @name, [])
         @class_methods = {"new" => @new}
 
-        @instance_methods = defmethods.map{|x| [x.name, x]}.to_h
+        getters = @ivars.map{|ivar|
+          n = ivar.name.sub("@", "")
+          [n,
+           DefMethod.new(n, [], ivar.type_name, 
+             [Return.new(VarRef.new(ivar.name))])
+          ]
+        }.to_h
+        @instance_methods = 
+          getters.merge(defmethods.map{|x| [x.name, x]}.to_h)
       end
       attr_reader :instance_ty, :ivars, :class_methods, :instance_methods
 
@@ -231,7 +239,7 @@ module Esquis
           @new.add_type!(env, self)
 
           newenv = env.set_selfcls(self)
-          defmethods.each{|x| x.add_type!(newenv, self)}
+          @instance_methods.each_value{|x| x.add_type!(newenv, self)}
           TyRaw["Class"]
         end
       end
@@ -259,7 +267,7 @@ module Esquis
           "  call void @#{func_initialize}(#{init_args.join ', '})",
           "  ret %#{t}* %addr",
           "}",
-          *defmethods.flat_map{|x| x.to_ll}
+          *@instance_methods.values.flat_map{|x| x.to_ll}
         ]
       end
     end

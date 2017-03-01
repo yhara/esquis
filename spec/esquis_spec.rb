@@ -135,16 +135,29 @@ describe Esquis do
       expect(run(src)).to eq("ACE")
     end
 
-    it 'ivar ref' do
-      src = <<~EOD
-        extern i32 putchar(i32);
-        class A
-          def initialize(@x: Float) {}
-          def foo() -> Float { return @x; }
-        end
-        putchar(A.new(65).foo());
-      EOD
-      expect(run(src)).to eq("A")
+    context 'ivar' do
+      it 'reference with name' do
+        src = <<~EOD
+          extern i32 putchar(i32);
+          class A
+            def initialize(@x: Float) {}
+            def foo() -> Float { return @x; }
+          end
+          putchar(A.new(65).foo());
+        EOD
+        expect(run(src)).to eq("A")
+      end
+
+      it 'reference with accessor' do
+        src = <<~EOD
+          extern i32 putchar(i32);
+          class A
+            def initialize(@x: Float) {}
+          end
+          putchar(A.new(65).x);
+        EOD
+        expect(run(src)).to eq("A")
+      end
     end
   end
 end
