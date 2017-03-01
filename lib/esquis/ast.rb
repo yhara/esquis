@@ -163,7 +163,7 @@ module Esquis
         [
           "define i32 @main() {",
           "  call void @GC_init()",
-          *stmts.map{|x| x.to_ll},
+          *stmts.flat_map{|x| x.to_ll},
           "  ret i32 0",
           "}",
         ]
@@ -296,6 +296,13 @@ module Esquis
         newenv = env.add_local_vars(lvars)
         body_stmts.each{|x| x.add_type!(newenv)}
 
+        last_ty = (body_stmts.empty? ? TyRaw["Void"] : body_stmts.last.ty)
+        if last_ty != @ty.ret_ty &&
+           name != "new" && ret_type_name != "Void" && !manual_return?
+          raise TypeMismatch, "#{name} is decalred to return #{ret_type_name}"+
+            " but returns #{body_stmts.last.ty.inspect}"
+        end
+
         @ty
       end
 
@@ -304,23 +311,46 @@ module Esquis
         param_list.unshift(self_param) if self_param
 
         ret_t = @ty.ret_ty.llvm_type
-        zero = case ret_t
-               when "double" then "0.0"
-               when "i32" then "0"
-               when "void" then ""
-               else raise "type #{ret_type_name.inspect} not supported"
-               end
         ll = []
         ll << "define #{ret_t} @#{funname}(#{param_list.join ', '}) {"
         ll.concat init_ll if init_ll
-        ll.concat body_stmts.flat_map{|x| x.to_ll}
-        ll << "  ret #{ret_t} #{zero}"
+        if ret_t == "void"
+          ll.concat body_stmts.flat_map(&:to_ll)
+          ll << "  ret void"
+        elsif manual_return?
+          ll.concat body_stmts.flat_map(&:to_ll)
+        else
+          *stmts, last_stmt = body_stmts
+          raise "unexpected" unless last_stmt.is_a?(ExprStmt)
+          ll.concat stmts.flat_map(&:to_ll)
+          last_ll, last_r = last_stmt.expr.to_ll_r
+          ll.concat last_ll
+          ll << "  ret #{ret_t} #{last_r}"
+        end
         ll << "}"
         return ll
       end
 
       def inspect
         "#<Defun #{@name}(#{@params})>"
+      end
+
+      private
+
+      def manual_return?(stmts = body_stmts)
+        last_stmt = stmts.last
+        case last_stmt
+        when Ast::Return then true
+        when Ast::If
+          return false if !manual_return?(last_stmt.then_stmts) 
+          if last_stmt.else_stmts.any?
+            manual_return?(last_stmt.else_stmts) 
+          else
+            true
+          end
+        else
+          false
+        end
       end
     end
 
@@ -534,7 +564,7 @@ module Esquis
       def add_type!(env)
         @ty ||= begin
           expr.add_type!(env)
-          NoType
+          expr.ty
         end
       end
 

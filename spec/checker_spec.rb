@@ -35,6 +35,20 @@ describe "Esquis" do
   end
 
   context "typing" do
+    context "method definition" do
+      it "should check return type" do
+        expect {
+          to_ll(<<~EOD)
+            class A
+              def foo() -> Float {
+                1 == 2;
+              }
+            end
+          EOD
+        }.to raise_error(Esquis::Ast::TypeMismatch)
+      end
+    end
+
     it "should check arity when calling toplevel func" do
       expect {
         to_ll(<<~EOD)

@@ -82,7 +82,7 @@ describe "ll emitter:" do
           store double %"@x", double* %ivar1_addr
 
           %reg3 = fadd double 1.0, 1.0
-          ret void 
+          ret void
         }
       EOD
       expect(ll[/^define i32 @main(.*?)^}\n/m]).to eq(<<~EOD)
@@ -120,10 +120,9 @@ describe "ll emitter:" do
           }
         end
       EOD
-      expect(ll).to include(<<~EOD)
+      expect(ll[/^define double @"A#foo"(.*?)^}\n/m]).to eq(<<~EOD)
         define double @"A#foo"(%"A"* %self, double %x) {
           ret double 123.0
-          ret double 0.0
         }
       EOD
     end
@@ -159,7 +158,6 @@ describe "ll emitter:" do
       expect(ll).to eq(<<~EOD)
         define double @foo(double %x, double %y) {
           ret double %x
-          ret double 0.0
         }
         define i32 @main() {
           call void @GC_init()
@@ -263,7 +261,6 @@ describe "ll emitter:" do
           define double @foo(double %x) {
             %reg1 = fsub double 0.0, %x
             ret double %reg1
-            ret double 0.0
           }
           define i32 @main() {
             call void @GC_init()

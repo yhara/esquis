@@ -1,6 +1,6 @@
 extern i32 putchar(i32);
 
-def printdensity(d: Float) -> Float {
+def printdensity(d: Float) -> Void {
   if d > 8 {
     putchar(32);  # ' '
   }
@@ -32,7 +32,7 @@ def mandleconverge(real: Float, imag: Float) -> Float {
 }
 
 def mandelhelp(xmin: Float, xmax: Float, xstep: Float,
-               ymin: Float, ymax: Float, ystep: Float) -> Float {
+               ymin: Float, ymax: Float, ystep: Float) -> Void {
   for (y: Float ; ymin ... ymax ; ystep) {
     for (x: Float ; xmin ... xmax ; xstep) {
        printdensity(mandleconverge(x,y));
@@ -42,9 +42,9 @@ def mandelhelp(xmin: Float, xmax: Float, xstep: Float,
 }
 
 def mandel(realstart: Float, imagstart: Float,
-           realmag: Float, imagmag: Float) -> Float {
-  return mandelhelp(realstart, realstart+realmag*78, realmag,
-                    imagstart, imagstart+imagmag*40, imagmag);
+           realmag: Float, imagmag: Float) -> Void {
+  mandelhelp(realstart, realstart+realmag*78, realmag,
+             imagstart, imagstart+imagmag*40, imagmag);
 }
 
 mandel(-2.3, -1.3, 0.05, 0.07);

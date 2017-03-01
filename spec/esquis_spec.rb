@@ -28,7 +28,7 @@ describe Esquis do
       src = <<~EOD
         extern i32 putchar(i32);
         class A
-          def hi(x: Float) -> Float { putchar(x + 65); }
+          def hi(x: Float) -> Void { putchar(x + 65); }
         end
         A.new().hi(0);
       EOD
