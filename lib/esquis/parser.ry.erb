@@ -165,8 +165,10 @@ rule
     <%= repeat0 'arg', sep: "','" %>
 
     varref:
-      IDENT
-      { Ast::VarRef.new(val[0]) }
+        IDENT
+        { Ast::VarRef.new(val[0]) }
+      | IVAR
+        { Ast::VarRef.new(val[0]) }
 
     literal:
         FLOAT

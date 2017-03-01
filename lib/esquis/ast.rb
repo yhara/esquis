@@ -209,7 +209,7 @@ module Esquis
 
         @instance_methods = defmethods.map{|x| [x.name, x]}.to_h
       end
-      attr_reader :instance_ty, :class_methods, :instance_methods
+      attr_reader :instance_ty, :ivars, :class_methods, :instance_methods
 
       def full_name
         name
@@ -217,9 +217,21 @@ module Esquis
 
       def add_type!(env)
         @ty ||= begin
+          # Note: we must run add_type! on @ivars before @new,
+          # because the former has an extra parameter(idx) :-(
+          idx = 0
+          @ivars.each do |x|
+            if x.name[0] == "@"
+              x.add_type!(env, (idx += 1))
+            else
+              x.add_type!(env)
+            end
+          end
+
           @new.add_type!(env, self)
 
-          defmethods.each{|x| x.add_type!(env, self)}
+          newenv = env.set_selfcls(self)
+          defmethods.each{|x| x.add_type!(newenv, self)}
           TyRaw["Class"]
         end
       end
@@ -349,9 +361,11 @@ module Esquis
 
     class Param < Node
       props :name, :type_name
+      attr_reader :idx  # used for ivar
 
-      def add_type!(env)
+      def add_type!(env, idx=nil)
         @ty ||= begin
+          @idx = idx if idx
           TyRaw[type_name]
         end
       end
@@ -365,7 +379,11 @@ module Esquis
       end
 
       def inspect
-        "#<Param #{type_name} #{name}>"
+        if @idx
+          "#<Param #{type_name} #{name}(#{@idx})>"
+        else
+          "#<Param #{type_name} #{name}>"
+        end
       end
     end
 
@@ -700,6 +718,9 @@ module Esquis
         @ty ||= begin
           if (ty = env.find_local_var(name))
             ty
+          elsif (@ivar = env.find_instance_var(name))
+            @selfcls = env.selfcls
+            @ivar.ty
           elsif (cls = env.find_class(name))
             TyRaw["Class"]
           else
@@ -709,7 +730,17 @@ module Esquis
       end
 
       def to_ll_r
-        return [], "%#{name}"
+        if name[0] == "@"
+          r1, r2 = newreg, newreg
+          t = %Q{"#{@selfcls.full_name}"}
+          ll = [
+            "  #{r1} = getelementptr inbounds %#{t}, %#{t}* %self, i32 0, i32 #{@ivar.idx}",
+            "  #{r2} = load #{@ty.llvm_type}, #{@ty.llvm_type}* #{r1}",
+          ]
+          return ll, r2
+        else
+          return [], "%#{name}"
+        end
       end
 
       def inspect
@@ -745,14 +776,19 @@ module Esquis
     end
 
     class Env
-      def initialize(toplevel_funcs = {}, local_vars = {}, classes = {})
-        @toplevel_funcs, @local_vars, @classes =
-          toplevel_funcs, local_vars, classes
+      def initialize(toplevel_funcs = {}, local_vars = {},
+                     classes = {}, selfcls = nil)
+        @toplevel_funcs, @local_vars, @classes, @selfcls =
+          toplevel_funcs, local_vars, classes, selfcls
+      end
+
+      def selfcls
+        @selfcls or raise "self not set"
       end
 
       def merge(toplevel_funcs: @toplevel_funcs, local_vars: @local_vars,
-                classes: @classes)
-        return Env.new(toplevel_funcs, local_vars, classes)
+                classes: @classes, selfcls: @selfcls)
+        return Env.new(toplevel_funcs, local_vars, classes, selfcls)
       end
 
       # @param lvars [{String => Ty}]
@@ -762,6 +798,16 @@ module Esquis
 
       def find_local_var(name)
         return @local_vars[name]
+      end
+
+      def set_selfcls(cls)
+        raise "self already set to #{@selfcls.inspect}" if @selfcls
+        return merge(selfcls: cls)
+      end
+
+      # Find ivar (Return nil outside a class)
+      def find_instance_var(name)
+        return @selfcls && @selfcls.ivars.find{|x| x.name == name}
       end
 
       # @param name [String]

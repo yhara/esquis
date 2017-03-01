@@ -134,5 +134,17 @@ describe Esquis do
       EOD
       expect(run(src)).to eq("ACE")
     end
+
+    it 'ivar ref' do
+      src = <<~EOD
+        extern i32 putchar(i32);
+        class A
+          def initialize(@x: Float) {}
+          def foo() -> Float { return @x; }
+        end
+        putchar(A.new(65).foo());
+      EOD
+      expect(run(src)).to eq("A")
+    end
   end
 end
