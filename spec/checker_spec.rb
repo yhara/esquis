@@ -61,6 +61,28 @@ describe "Esquis" do
       }.not_to raise_error
     end
 
+    it "should check arity of new" do
+      expect {
+        to_ll(<<~EOD)
+          class A
+            def initialize() { 1; }
+          end
+          A.new(1);
+        EOD
+      }.to raise_error(Esquis::Ast::ArityMismatch)
+    end
+
+    it "should check arg types of new" do
+      expect {
+        to_ll(<<~EOD)
+          class A
+            def initialize(x: Float) { 1; }
+          end
+          A.new(1 == 1);
+        EOD
+      }.to raise_error(Esquis::Ast::TypeMismatch)
+    end
+
     it "should check arity of method call" do
       expect {
         to_ll(<<~EOD)

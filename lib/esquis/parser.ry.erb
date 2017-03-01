@@ -28,7 +28,7 @@
 %>
 class Esquis::Parser
   options no_result_var
-  token IDENT FLOAT INTEGER
+  token IDENT IVAR FLOAT INTEGER
 
   prechigh
     right UMINUS
@@ -60,11 +60,24 @@ rule
       { Ast::DefClass.new(val[1], val[2]) }
 
     defmethod:
-      'def' IDENT '(' opt_params ')' '->' IDENT '{'
-         opt_statements
-      '}'
-      { Ast::DefMethod.new(val[1], val[3], val[6], val[8]) }
+        definitialize
+      | 'def' IDENT '(' opt_params ')' '->' IDENT '{'
+           opt_statements
+        '}'
+        { Ast::DefMethod.new(val[1], val[3], val[6], val[8]) }
     <%= repeat0 'defmethod' %>
+
+    definitialize:
+        'def' 'initialize' '(' opt_iparams ')' '{'
+          opt_statements
+        '}'
+      { Ast::DefInitialize.new(val[3], val[6]) }
+
+    iparam : 
+        param
+      | IVAR ':' IDENT
+      { Ast::Param.new(val[0], val[2]) }
+    <%= repeat0 'iparam', sep: "','" %>
 
     defun:
       'def' IDENT '(' opt_params ')' '->' IDENT '{'
@@ -142,6 +155,8 @@ rule
     method_call:
         expression '.' IDENT '(' opt_args ')'
       { Ast::MethodCall.new(val[0], val[2], val[4]) }
+      | expression '.' IDENT
+      { Ast::MethodCall.new(val[0], val[2], []) }
 
     fcall:
         IDENT '(' opt_args ')'
@@ -152,8 +167,10 @@ rule
     <%= repeat0 'arg', sep: "','" %>
 
     varref:
-      IDENT
-      { Ast::VarRef.new(val[0]) }
+        IDENT
+        { Ast::VarRef.new(val[0]) }
+      | IVAR
+        { Ast::VarRef.new(val[0]) }
 
     literal:
         FLOAT
@@ -166,7 +183,7 @@ end
 require 'strscan'
 
 ---- inner
-KEYWORDS = /extern|class|end|def|if|else|for|return/
+KEYWORDS = /extern|class|def|initialize|end|if|else|for|return/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :
@@ -193,6 +210,8 @@ def parse(str)
       @q << [:INTEGER, m.to_i]
     when m = s.scan(KEYWORDS)
       @q << [m, m.to_sym]
+    when m = s.scan(/@[\w_]+/)
+      @q << [:IVAR, m]
     when m = s.scan(/[\w_]+/)
       @q << [:IDENT, m]
     else

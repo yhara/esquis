@@ -189,7 +189,6 @@ module Esquis
 
     class DefClass < Node
       props :name, :defmethods
-      attr_reader :instance_ty
 
       def self.reset; @@class_id = 0; end
       reset
@@ -197,9 +196,28 @@ module Esquis
       def init
         @class_id = (@@class_id += 1)
         @instance_ty = TyRaw[name]
-        @instance_methods = defmethods.map{|x| [x.name, x]}.to_h
+
+        @initialize = defmethods.find{|x| x.is_a?(DefInitialize)}
+        if @initialize.nil?
+          @initialize = DefInitialize.new([], [])
+          @defmethods << @initialize
+        end
+        @ivars = @initialize.ivars
+
+        @new = DefMethod.new("new", @initialize.params, @name, [])
+        @class_methods = {"new" => @new}
+
+        getters = @ivars.map{|ivar|
+          n = ivar.name.sub("@", "")
+          [n,
+           DefMethod.new(n, [], ivar.type_name, 
+             [Return.new(VarRef.new(ivar.name))])
+          ]
+        }.to_h
+        @instance_methods = 
+          getters.merge(defmethods.map{|x| [x.name, x]}.to_h)
       end
-      attr_reader :instance_methods
+      attr_reader :instance_ty, :ivars, :class_methods, :instance_methods
 
       def full_name
         name
@@ -207,17 +225,37 @@ module Esquis
 
       def add_type!(env)
         @ty ||= begin
-          defmethods.each{|x| x.add_type!(env, self)}
+          # Note: we must run add_type! on @ivars before @new,
+          # because the former has an extra parameter(idx) :-(
+          idx = 0
+          @ivars.each do |x|
+            if x.name[0] == "@"
+              x.add_type!(env, (idx += 1))
+            else
+              x.add_type!(env)
+            end
+          end
+
+          @new.add_type!(env, self)
+
+          newenv = env.set_selfcls(self)
+          @instance_methods.each_value{|x| x.add_type!(newenv, self)}
           TyRaw["Class"]
         end
       end
 
       def to_ll
         t = %Q{"#{name}"}
-        n = %Q{"#{name}.new"}
+        func_new = %Q{"#{name}.new"}
+        func_initialize = %Q{"#{name}#initialize"}
+        new_args = @ivars.map{|x|
+          %Q{#{x.ty.llvm_type} %"#{x.name}"}
+        }
+        init_args = ["%#{t}* %addr"] + new_args
+        struct_members = ["i32"] + @ivars.map{|x| x.ty.llvm_type}
         [
-          "%#{t} = type { i32 }",
-          "define %#{t}* @#{n}() {",
+          "%#{t} = type { #{struct_members.join ', '} }",
+          "define %#{t}* @#{func_new}(#{new_args.join ', '}) {",
           "  %size = ptrtoint %#{t}* getelementptr (%#{t}, %#{t}* null, i32 1) to i64",
           "  %raw_addr = call i8* @GC_malloc(i64 %size)",
           "  %addr = bitcast i8* %raw_addr to %#{t}*",
@@ -226,10 +264,10 @@ module Esquis
           "",
           "  %id_addr = getelementptr inbounds %#{t}, %#{t}* %addr, i32 0, i32 0",
           "  store i32 #{@class_id}, i32* %id_addr",
-          "",
+          "  call void @#{func_initialize}(#{init_args.join ', '})",
           "  ret %#{t}* %addr",
           "}",
-          *defmethods.flat_map{|x| x.to_ll}
+          *@instance_methods.values.flat_map{|x| x.to_ll}
         ]
       end
     end
@@ -261,7 +299,7 @@ module Esquis
         @ty
       end
 
-      def to_ll(funname: name, self_param: nil)
+      def to_ll(funname: name, self_param: nil, init_ll: nil)
         param_list = params.flat_map(&:to_ll)
         param_list.unshift(self_param) if self_param
 
@@ -269,10 +307,12 @@ module Esquis
         zero = case ret_t
                when "double" then "0.0"
                when "i32" then "0"
-               else raise "type #{ret_type_name} not supported"
+               when "void" then ""
+               else raise "type #{ret_type_name.inspect} not supported"
                end
         ll = []
         ll << "define #{ret_t} @#{funname}(#{param_list.join ', '}) {"
+        ll.concat init_ll if init_ll
         ll.concat body_stmts.flat_map{|x| x.to_ll}
         ll << "  ret #{ret_t} #{zero}"
         ll << "}"
@@ -296,27 +336,62 @@ module Esquis
         @cls.full_name + "#" + name
       end
 
-      def to_ll
+      def to_ll(init_ll: nil)
         return super(funname: %Q{"#{@cls.name}##{name}"},
-                     self_param: %Q{%"#{@cls.name}"* %self})
+                     self_param: %Q{%"#{@cls.name}"* %self},
+                     init_ll: init_ll)
+      end
+    end
+
+    class DefInitialize < DefMethod
+      props :params, :body_stmts
+
+      def name; "initialize"; end
+      def ret_type_name; "Void"; end
+
+      def ivars
+        params.select{|x| x.name.start_with?("@")}
+      end
+
+      def to_ll
+        t = %Q{"#{@cls.name}"}
+        init_ivars = ivars.flat_map.with_index(1){|ivar, i|
+          n = %Q{"#{ivar.name}"}
+          it = ivar.ty.llvm_type
+          [
+            "  %ivar#{i}_addr = getelementptr inbounds %#{t}, %#{t}* %self, i32 0, i32 #{i}",
+            "  store #{it} %#{n}, #{it}* %ivar#{i}_addr",
+          ]
+        } + [""]
+        return super(init_ll: init_ivars)
       end
     end
 
     class Param < Node
       props :name, :type_name
+      attr_reader :idx  # used for ivar
 
-      def add_type!(env)
+      def add_type!(env, idx=nil)
         @ty ||= begin
+          @idx = idx if idx
           TyRaw[type_name]
         end
       end
 
       def to_ll
-        return ["#{@ty.llvm_type} %#{name}"]
+        if name[0] == "@"
+          return [%Q{#{@ty.llvm_type} %"#{name}"}]
+        else
+          return ["#{@ty.llvm_type} %#{name}"]
+        end
       end
 
       def inspect
-        "#<Param #{type_name} #{name}>"
+        if @idx
+          "#<Param #{type_name} #{name}(#{@idx})>"
+        else
+          "#<Param #{type_name} #{name}>"
+        end
       end
     end
 
@@ -607,26 +682,24 @@ module Esquis
           receiver_ty = receiver_expr.add_type!(env)
           if receiver_ty == TyRaw["Class"]
             # Class method call (only .new is currently supported)
-            cls = env.fetch_class(receiver_expr.name)
-            @method = Defun.new("new", [], cls.name, [])
-            @method.add_type!(env)
-            cls.instance_ty
+            @method = env.fetch_class_method(receiver_expr.name, "new")
           else
-            args.each{|x| x.add_type!(env)}
             @method = env.fetch_instance_method(receiver_ty, method_name)
-            if args.length != @method.arity
-              raise ArityMismatch,
-                "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
-            end
-            @method.params.zip(args) do |param, arg|
-              if param.ty != arg.ty
-                raise TypeMismatch,
-                  "parameter #{param.name} of #{@method.full_name} "
-                  "is #{param.ty} but got #{arg.ty}"
-              end
-            end
-            @method.ty.ret_ty
           end
+          args.each{|x| x.add_type!(env)}
+
+          if args.length != @method.arity
+            raise ArityMismatch,
+              "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
+          end
+          @method.params.zip(args) do |param, arg|
+            if param.ty != arg.ty
+              raise TypeMismatch,
+                "parameter #{param.name} of #{@method.full_name} "+
+                "is #{param.ty} but got #{arg.ty.inspect}"
+            end
+          end
+          @method.ty.ret_ty
         end
       end
 
@@ -653,6 +726,9 @@ module Esquis
         @ty ||= begin
           if (ty = env.find_local_var(name))
             ty
+          elsif (@ivar = env.find_instance_var(name))
+            @selfcls = env.selfcls
+            @ivar.ty
           elsif (cls = env.find_class(name))
             TyRaw["Class"]
           else
@@ -662,7 +738,17 @@ module Esquis
       end
 
       def to_ll_r
-        return [], "%#{name}"
+        if name[0] == "@"
+          r1, r2 = newreg, newreg
+          t = %Q{"#{@selfcls.full_name}"}
+          ll = [
+            "  #{r1} = getelementptr inbounds %#{t}, %#{t}* %self, i32 0, i32 #{@ivar.idx}",
+            "  #{r2} = load #{@ty.llvm_type}, #{@ty.llvm_type}* #{r1}",
+          ]
+          return ll, r2
+        else
+          return [], "%#{name}"
+        end
       end
 
       def inspect
@@ -698,14 +784,19 @@ module Esquis
     end
 
     class Env
-      def initialize(toplevel_funcs = {}, local_vars = {}, classes = {})
-        @toplevel_funcs, @local_vars, @classes =
-          toplevel_funcs, local_vars, classes
+      def initialize(toplevel_funcs = {}, local_vars = {},
+                     classes = {}, selfcls = nil)
+        @toplevel_funcs, @local_vars, @classes, @selfcls =
+          toplevel_funcs, local_vars, classes, selfcls
+      end
+
+      def selfcls
+        @selfcls or raise "self not set"
       end
 
       def merge(toplevel_funcs: @toplevel_funcs, local_vars: @local_vars,
-                classes: @classes)
-        return Env.new(toplevel_funcs, local_vars, classes)
+                classes: @classes, selfcls: @selfcls)
+        return Env.new(toplevel_funcs, local_vars, classes, selfcls)
       end
 
       # @param lvars [{String => Ty}]
@@ -715,6 +806,16 @@ module Esquis
 
       def find_local_var(name)
         return @local_vars[name]
+      end
+
+      def set_selfcls(cls)
+        raise "self already set to #{@selfcls.inspect}" if @selfcls
+        return merge(selfcls: cls)
+      end
+
+      # Find ivar (Return nil outside a class)
+      def find_instance_var(name)
+        return @selfcls && @selfcls.ivars.find{|x| x.name == name}
       end
 
       # @param name [String]
@@ -746,6 +847,12 @@ module Esquis
       def fetch_instance_method(receiver_ty, method_name)
         cls = fetch_class(receiver_ty.name)
         return cls.instance_methods.fetch(method_name)
+      end
+
+      # @return [DefMethod] 
+      def fetch_class_method(cls_name, method_name)
+        cls = fetch_class(cls_name)
+        return cls.class_methods.fetch(method_name)
       end
     end
   end
