@@ -109,21 +109,24 @@ rule
     <%= repeat0 'statement' %>
 
     if_stmt:
-        'if' expression block_or_stmt
-        opt_else
-      { Ast::If.new(val[1], val[2], val[3]) }
+        'if' expression 'do' opt_statements 'end'
+      { Ast::If.new(val[1], val[3], []) }
+      | 'if' expression 'do' opt_statements elsif_clause
+      { Ast::If.new(val[1], val[3], val[4]) }
+
+    elsif_clause:
+        'elsif' expression 'do' opt_statements elsif_clause
+      { [Ast::If.new(val[1], val[3], val[4])] }
+      | 'elsif' expression 'do' opt_statements 'end'
+      { [Ast::If.new(val[1], val[3], [])] }
+      | 'else' opt_statements 'end'
+      { val[1] }
 
     block_or_stmt:
         'do' opt_statements 'end'
       { val[1] }
       | statement
       { [val[0]] }
-
-    opt_else:
-        /* NONE */
-      { [] }
-      | 'else' block_or_stmt
-      { val[1] }
 
     for_stmt:
         'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' block_or_stmt
@@ -183,7 +186,7 @@ end
 require 'strscan'
 
 ---- inner
-KEYWORDS = /extern|class|def|initialize|do|end|if|else|for|return/
+KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :
@@ -209,7 +212,7 @@ def parse(str)
     when m = s.scan(/\d+/)
       @q << [:INTEGER, m.to_i]
     when m = s.scan(/#{KEYWORDS}\b/)
-      @q << [m, m.to_sym]
+      @q << [m, :KEYWORD]
     when m = s.scan(/@[\w_]+/)
       @q << [:IVAR, m]
     when m = s.scan(/[\w_]+/)
