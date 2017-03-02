@@ -204,7 +204,7 @@ def parse(str)
     when s.scan(%r{#.*\n})
       # skip comment
     when m = s.scan(SYMBOLS)
-      @q << [m, m]
+      @q << [m, :SYMBOL]
     when m = s.scan(/\d+\.\d+/)
       @q << [:FLOAT, m.to_f]
     when m = s.scan(/\d+/)
