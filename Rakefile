@@ -12,7 +12,11 @@ end
 
 desc "run test"
 task :test => 'lib/esquis/parser.rb' do
-  sh "rspec"
+  if ENV["F"]
+    sh "rspec --fail-fast"
+  else
+    sh "rspec"
+  end
 end
 
 task :parser => 'lib/esquis/parser.rb'
