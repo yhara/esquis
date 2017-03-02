@@ -122,15 +122,11 @@ rule
       | 'else' opt_statements 'end'
       { val[1] }
 
-    block_or_stmt:
-        'do' opt_statements 'end'
-      { val[1] }
-      | statement
-      { [val[0]] }
-
     for_stmt:
-        'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' block_or_stmt
-      { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[12]) }
+        'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' 'do'
+          opt_statements
+        'end'
+      { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[13]) }
 
     return_stmt:
         'return' expression
