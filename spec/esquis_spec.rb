@@ -38,8 +38,8 @@ describe Esquis do
     it 'defun' do
       src = <<~EOD
         extern i32 putchar(i32)
-        def add(x: Float, y: Float) -> Float; return x + y; end
-        putchar(add(60, 5))
+        def eq(x: Float, y: Float) -> Bool; return x == y; end
+        if eq(1, 1); putchar(65); end
       EOD
       expect(run(src)).to eq("A")
     end

@@ -44,6 +44,7 @@ module Esquis
     TyRaw["double"].llvm_type = "double"
     TyRaw["Int"].llvm_type = "i32"
     TyRaw["i32"].llvm_type = "i32"
+    TyRaw["Bool"].llvm_type = "i1"
     TyRaw["Void"].llvm_type = "void"
 
     class TyMethod < Base

@@ -696,7 +696,7 @@ module Esquis
           rr = newreg
           ll << "  #{rr} = sitofp i32 #{r} to double"
           return ll, rr
-        when "double", /%(.*)\*/
+        when "double", "i1", /%(.*)\*/
           return ll, r
         when "void"
           return ll, nil
