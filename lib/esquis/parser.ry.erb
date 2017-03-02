@@ -205,8 +205,6 @@ def parse(str)
       # skip comment
     when m = s.scan(SYMBOLS)
       @q << [m, m]
-    when m = s.scan(/^#extern (.+)\n/)
-      @q << [:EXTERN, s[1]]
     when m = s.scan(/\d+\.\d+/)
       @q << [:FLOAT, m.to_f]
     when m = s.scan(/\d+/)
