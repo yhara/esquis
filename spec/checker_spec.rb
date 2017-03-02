@@ -138,6 +138,15 @@ describe "Esquis" do
           EOD
         }.not_to raise_error
       end
+
+      it "should allow return double instead of Float" do
+        expect {
+          to_ll(<<~EOD)
+            extern double sqrt(double);
+            def foo() -> Float { sqrt(1); }
+          EOD
+        }.not_to raise_error
+      end
     end
 
     it "should check condition of if-stmt is Bool" do

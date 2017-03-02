@@ -297,10 +297,12 @@ module Esquis
         body_stmts.each{|x| x.add_type!(newenv)}
 
         last_ty = (body_stmts.empty? ? TyRaw["Void"] : body_stmts.last.ty)
-        if last_ty != @ty.ret_ty &&
-           name != "new" && ret_type_name != "Void" && !manual_return?
-          raise TypeMismatch, "#{name} is decalred to return #{ret_type_name}"+
-            " but returns #{body_stmts.last.ty.inspect}"
+        if name != "new" && ret_type_name != "Void" && !manual_return?
+          if last_ty != @ty.ret_ty &&
+             last_ty.llvm_type != @ty.ret_ty.llvm_type
+            raise TypeMismatch, "#{name} is decalred to return #{ret_type_name}"+
+              " but returns #{last_ty.inspect}"
+          end
         end
 
         @ty
