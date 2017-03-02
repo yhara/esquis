@@ -45,7 +45,7 @@ describe "ll emitter:" do
     it "should deifne a struct type" do
       ll = to_ll(<<~EOD)
         class A
-          def initialize(@x: Float) { }
+          def initialize(@x: Float) do end
         end
       EOD
       expect(ll[/^%"A"(.*?)^\}\n/m]).to eq(<<~EOD)
@@ -70,9 +70,9 @@ describe "ll emitter:" do
     it "should store ivar values" do
       ll = to_ll(<<~EOD)
         class A
-          def initialize(@x: Float) {
+          def initialize(@x: Float) do
             1 + 1
-          }
+          end
         end
         A.new(2)
       EOD
@@ -115,9 +115,9 @@ describe "ll emitter:" do
     it "should define a function" do
       ll = to_ll(<<~EOD)
         class A
-          def foo(x: Float) -> Float {
+          def foo(x: Float) -> Float do
             return 123
-          }
+          end
         end
       EOD
       expect(ll[/^define double @"A#foo"(.*?)^}\n/m]).to eq(<<~EOD)
@@ -132,9 +132,9 @@ describe "ll emitter:" do
     it "should call a function" do
       ll = to_ll(<<~EOD)
         class A
-          def foo(x: Float) -> Float {
+          def foo(x: Float) -> Float do
             return 123
-          }
+          end
         end
         A.new().foo(234)
       EOD
@@ -152,7 +152,7 @@ describe "ll emitter:" do
   describe "func definition" do
     it "should define a function" do
       ll = to_ll(<<~EOD)
-        def foo(x: Float, y: Float) -> Float { return x }
+        def foo(x: Float, y: Float) -> Float do return x end
         foo(123, 456)
       EOD
       expect(ll).to eq(<<~EOD)
@@ -172,9 +172,9 @@ describe "ll emitter:" do
     it "true case" do
       ll = to_ll(<<~EOD)
         extern i32 putchar(i32)
-        if (1 < 2) {
+        if 1 < 2 do
           putchar(65)
-        }
+        end
       EOD
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
@@ -198,9 +198,9 @@ describe "ll emitter:" do
     it "should expand into loop" do
       ll = to_ll(<<~EOD)
         extern i32 putchar(i32)
-        for (x: Float; 65 ... 70 ; 2) {
+        for (x: Float; 65 ... 70 ; 2) do
           putchar(x)
-        }
+        end
       EOD
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
@@ -254,7 +254,7 @@ describe "ll emitter:" do
     describe "-" do
       it "should flip the sign" do
         ll = to_ll(<<~EOD)
-          def foo(x: Float) -> Float { return -x }
+          def foo(x: Float) -> Float do return -x end
           foo(3)
         EOD
         expect(ll).to eq(<<~EOD)
