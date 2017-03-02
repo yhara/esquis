@@ -15,4 +15,5 @@ task :test => 'lib/esquis/parser.rb' do
   sh "rspec"
 end
 
+task :parser => 'lib/esquis/parser.rb'
 task :default => :test
