@@ -10,7 +10,7 @@ describe "ll emitter:" do
   describe "extern" do
     it "should add the body to ll" do
       ll = to_ll(<<~EOD)
-        extern i32 putchar(i32);
+        extern i32 putchar(i32)
       EOD
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
@@ -25,8 +25,8 @@ describe "ll emitter:" do
   describe "main stmts" do
     it "should be the body of @main" do
       ll = to_ll(<<~EOD)
-        extern i32 putchar(i32);
-        putchar(65);
+        extern i32 putchar(i32)
+        putchar(65)
       EOD
       expect(ll).to eq(<<~EOD)
         declare i32 @putchar(i32)
@@ -71,10 +71,10 @@ describe "ll emitter:" do
       ll = to_ll(<<~EOD)
         class A
           def initialize(@x: Float) {
-            1 + 1;
+            1 + 1
           }
         end
-        A.new(2);
+        A.new(2)
       EOD
       expect(ll[/^define void @"A#initialize"(.*?)^\}\n/m]).to eq(<<~EOD)
         define void @"A#initialize"(%"A"* %self, double %"@x") {
@@ -99,7 +99,7 @@ describe "ll emitter:" do
     it "should call .new" do
       ll = to_ll(<<~EOD)
         class A end
-        A.new();
+        A.new()
       EOD
       expect(ll[/^define i32 @main(.*?)^}\n/m]).to eq(<<~EOD)
         define i32 @main() {
@@ -116,7 +116,7 @@ describe "ll emitter:" do
       ll = to_ll(<<~EOD)
         class A
           def foo(x: Float) -> Float {
-            return 123;
+            return 123
           }
         end
       EOD
@@ -133,10 +133,10 @@ describe "ll emitter:" do
       ll = to_ll(<<~EOD)
         class A
           def foo(x: Float) -> Float {
-            return 123;
+            return 123
           }
         end
-        A.new().foo(234);
+        A.new().foo(234)
       EOD
       expect(ll[/^define i32 @main(.*?)^}\n/m]).to eq(<<~EOD)
         define i32 @main() {
@@ -152,8 +152,8 @@ describe "ll emitter:" do
   describe "func definition" do
     it "should define a function" do
       ll = to_ll(<<~EOD)
-        def foo(x: Float, y: Float) -> Float { return x; }
-        foo(123, 456);
+        def foo(x: Float, y: Float) -> Float { return x }
+        foo(123, 456)
       EOD
       expect(ll).to eq(<<~EOD)
         define double @foo(double %x, double %y) {
@@ -171,9 +171,9 @@ describe "ll emitter:" do
   describe "if stmt" do
     it "true case" do
       ll = to_ll(<<~EOD)
-        extern i32 putchar(i32);
+        extern i32 putchar(i32)
         if (1 < 2) {
-          putchar(65);
+          putchar(65)
         }
       EOD
       expect(ll).to eq(<<~EOD)
@@ -197,9 +197,9 @@ describe "ll emitter:" do
   describe "for stmt" do
     it "should expand into loop" do
       ll = to_ll(<<~EOD)
-        extern i32 putchar(i32);
+        extern i32 putchar(i32)
         for (x: Float; 65 ... 70 ; 2) {
-          putchar(x);
+          putchar(x)
         }
       EOD
       expect(ll).to eq(<<~EOD)
@@ -232,8 +232,8 @@ describe "ll emitter:" do
     describe "`+`" do
       it "should conveted to add" do
         ll = to_ll(<<~EOD)
-          extern i32 putchar(i32);
-          putchar(60 + 5);
+          extern i32 putchar(i32)
+          putchar(60 + 5)
         EOD
         expect(ll).to eq(<<~EOD)
           declare i32 @putchar(i32)
@@ -254,8 +254,8 @@ describe "ll emitter:" do
     describe "-" do
       it "should flip the sign" do
         ll = to_ll(<<~EOD)
-          def foo(x: Float) -> Float { return -x; }
-          foo(3);
+          def foo(x: Float) -> Float { return -x }
+          foo(3)
         EOD
         expect(ll).to eq(<<~EOD)
           define double @foo(double %x) {

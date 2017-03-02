@@ -1,50 +1,50 @@
-extern i32 putchar(i32);
+extern i32 putchar(i32)
 
 def printdensity(d: Float) -> Void {
   if d > 8 {
-    putchar(32);  # ' '
+    putchar(32)  # ' '
   }
   else if d > 4 {
-    putchar(46);  # '.'
+    putchar(46)  # '.'
   }
   else if d > 2 {
-    putchar(43);  # '+'
+    putchar(43)  # '+'
   }
   else {
-    putchar(42); # '*'
+    putchar(42) # '*'
   }
 }
 
 def mandleconverger(real: Float, imag: Float, iters: Float,
                     creal: Float, cimag: Float) -> Float {
   if iters > 255 || (real*real + imag*imag > 4) {
-    return iters;
+    return iters
   }
   else {
     return mandleconverger(real*real - imag*imag + creal,
                            2*real*imag + cimag,
-                           iters+1, creal, cimag);
+                           iters+1, creal, cimag)
   }
 }
 
 def mandleconverge(real: Float, imag: Float) -> Float {
-  return mandleconverger(real, imag, 0, real, imag);
+  return mandleconverger(real, imag, 0, real, imag)
 }
 
 def mandelhelp(xmin: Float, xmax: Float, xstep: Float,
                ymin: Float, ymax: Float, ystep: Float) -> Void {
   for (y: Float ; ymin ... ymax ; ystep) {
     for (x: Float ; xmin ... xmax ; xstep) {
-       printdensity(mandleconverge(x,y));
+       printdensity(mandleconverge(x,y))
     }
-    putchar(10);
+    putchar(10)
   }
 }
 
 def mandel(realstart: Float, imagstart: Float,
            realmag: Float, imagmag: Float) -> Void {
   mandelhelp(realstart, realstart+realmag*78, realmag,
-             imagstart, imagstart+imagmag*40, imagmag);
+             imagstart, imagstart+imagmag*40, imagmag)
 }
 
-mandel(-2.3, -1.3, 0.05, 0.07);
+mandel(-2.3, -1.3, 0.05, 0.07)
