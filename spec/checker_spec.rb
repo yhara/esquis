@@ -12,7 +12,7 @@ describe "Esquis" do
       expect {
         to_ll(<<~EOD)
           extern i32 putchar(i32)
-          def putchar(x: Float, y: Float) -> Float do return x end
+          def putchar(x: Float, y: Float) -> Float; return x; end
         EOD
       }.to raise_error(Esquis::Ast::DuplicatedDefinition)
     end
@@ -20,7 +20,7 @@ describe "Esquis" do
     it "should check duplicated param names" do
       expect {
         to_ll(<<~EOD)
-          def putchar(x: Float, x: Float) -> Float do return x end
+          def putchar(x: Float, x: Float) -> Float; return x; end
         EOD
       }.to raise_error(Esquis::Ast::DuplicatedParamName)
     end
@@ -40,7 +40,7 @@ describe "Esquis" do
         expect {
           to_ll(<<~EOD)
             class A
-              def foo() -> Float do
+              def foo() -> Float
                 1 == 2
               end
             end
@@ -52,7 +52,7 @@ describe "Esquis" do
         expect {
           to_ll(<<~EOD)
             class A
-              def foo(x: Float) -> Float do A.new().foo(x) end
+              def foo(x: Float) -> Float; A.new().foo(x); end
             end
           EOD
         }.not_to raise_error
@@ -63,7 +63,7 @@ describe "Esquis" do
       it "should check arity when calling toplevel func" do
         expect {
           to_ll(<<~EOD)
-            def foo(x: Float) -> Float do 1 end
+            def foo(x: Float) -> Float; 1; end
             foo(1, 2)
           EOD
         }.to raise_error(Esquis::Ast::ArityMismatch)
@@ -72,7 +72,7 @@ describe "Esquis" do
       it "should check arg types when calling toplevel func" do
         expect {
           to_ll(<<~EOD)
-            def foo(x: Float) -> Float do 1 end
+            def foo(x: Float) -> Float; 1; end
             foo(1 == 2)
           EOD
         }.to raise_error(Esquis::Ast::TypeMismatch)
@@ -81,7 +81,7 @@ describe "Esquis" do
       it "should pass recursive toplevel func" do
         expect {
           to_ll(<<~EOD)
-            def foo(x: Float) -> Float do foo(x) end
+            def foo(x: Float) -> Float; foo(x); end
           EOD
         }.not_to raise_error
       end
@@ -90,7 +90,7 @@ describe "Esquis" do
         expect {
           to_ll(<<~EOD)
             class A
-              def initialize() do 1 end
+              def initialize(); 1; end
             end
             A.new(1)
           EOD
@@ -101,7 +101,7 @@ describe "Esquis" do
         expect {
           to_ll(<<~EOD)
             class A
-              def initialize(x: Float) do 1 end
+              def initialize(x: Float); 1; end
             end
             A.new(1 == 1)
           EOD
@@ -112,7 +112,7 @@ describe "Esquis" do
         expect {
           to_ll(<<~EOD)
             class A
-              def foo() -> Float do 1 end
+              def foo() -> Float; 1; end
             end
             A.new().foo(1)
           EOD
@@ -123,7 +123,7 @@ describe "Esquis" do
         expect {
           to_ll(<<~EOD)
             class A
-              def foo(x: Float) -> Float do 1 end
+              def foo(x: Float) -> Float; 1; end
             end
             A.new().foo(1 == 1)
           EOD
@@ -143,7 +143,7 @@ describe "Esquis" do
         expect {
           to_ll(<<~EOD)
             extern double sqrt(double)
-            def foo() -> Float do sqrt(1) end
+            def foo() -> Float; sqrt(1); end
           EOD
         }.not_to raise_error
       end
@@ -152,13 +152,13 @@ describe "Esquis" do
     it "should check condition of if-stmt is Bool" do
       expect {
         to_ll(<<~EOD)
-          if 1 do 2 end
+          if 1; 2; end
         EOD
       }.to raise_error(Esquis::Ast::TypeMismatch)
 
       expect {
         to_ll(<<~EOD)
-          if 1 == 1 do 2 end
+          if 1 == 1; 2; end
         EOD
       }.not_to raise_error
     end

@@ -377,8 +377,9 @@ module Esquis
 
     class DefInitialize < DefMethod
       props :params, :body_stmts
+      attr_reader :name
 
-      def name; "initialize"; end
+      def init; @name = "initialize"; end
       def ret_type_name; "Void"; end
 
       def ivars

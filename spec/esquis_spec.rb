@@ -28,7 +28,7 @@ describe Esquis do
       src = <<~EOD
         extern i32 putchar(i32)
         class A
-          def hi(x: Float) -> Void do putchar(x + 65) end
+          def hi(x: Float) -> Void; putchar(x + 65); end
         end
         A.new().hi(0)
       EOD
@@ -38,97 +38,97 @@ describe Esquis do
     it 'defun' do
       src = <<~EOD
         extern i32 putchar(i32)
-        def add(x: Float, y: Float) -> Float do return x + y end
+        def add(x: Float, y: Float) -> Float; return x + y; end
         putchar(add(60, 5))
       EOD
       expect(run(src)).to eq("A")
     end
 
     it '+' do
-      src = "extern i32 putchar(i32) putchar(60 + 5)"
+      src = "extern i32 putchar(i32); putchar(60 + 5)"
       expect(run(src)).to eq("A")
     end
 
     it '-' do
-      src = "extern i32 putchar(i32) putchar(70 - 5)"
+      src = "extern i32 putchar(i32); putchar(70 - 5)"
       expect(run(src)).to eq("A")
     end
 
     it '*' do
-      src = "extern i32 putchar(i32) putchar(13 * 5)"
+      src = "extern i32 putchar(i32); putchar(13 * 5)"
       expect(run(src)).to eq("A")
     end
 
     it '/' do
-      src = "extern i32 putchar(i32) putchar(157 / 2.41)"
+      src = "extern i32 putchar(i32); putchar(157 / 2.41)"
       expect(run(src)).to eq("A")
     end
 
     it '==' do
-      src = "extern i32 putchar(i32) if (1 == 1) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 == 1; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (1 == 2) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 == 2; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it '>' do
-      src = "extern i32 putchar(i32) if (2 > 1) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 2 > 1; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (1 > 2) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 > 2; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it '>=' do
-      src = "extern i32 putchar(i32) if (1 >= 1) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 >= 1; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (1 >= 2) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 >= 2; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it '<' do
-      src = "extern i32 putchar(i32) if (1 < 2) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 < 2; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (2 < 1) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 2 < 1; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it '<=' do
-      src = "extern i32 putchar(i32) if (1 <= 1) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 <= 1; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (2 <= 1) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 2 <= 1; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it '!=' do
-      src = "extern i32 putchar(i32) if (1 != 2) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 != 2; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (1 != 1) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 != 1; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it '&&' do
-      src = "extern i32 putchar(i32) if (1 == 1 && 2 == 2) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 == 1 && 2 == 2; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (1 == 1 && 2 == 0) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 == 1 && 2 == 0; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it '||' do
-      src = "extern i32 putchar(i32) if (1 == 0 || 2 == 2) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 == 0 || 2 == 2; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32) if (1 == 0 || 2 == 0) do putchar(65) end"
+      src = "extern i32 putchar(i32); if 1 == 0 || 2 == 0; putchar(65); end"
       expect(run(src)).to eq("")
     end
 
     it 'unary -' do
-      src = "extern i32 putchar(i32) putchar(-(-65))"
+      src = "extern i32 putchar(i32); putchar(-(-65))"
       expect(run(src)).to eq("A")
     end
 
     it 'for' do
       src = <<-EOD
         extern i32 putchar(i32)
-        for (x: Int; 65 ... 70 ; 2) do
+        for (x: Int; 65 ... 70 ; 2)
           putchar(x)
         end
       EOD
@@ -140,8 +140,8 @@ describe Esquis do
         src = <<~EOD
           extern i32 putchar(i32)
           class A
-            def initialize(@x: Float) do end
-            def foo() -> Float do return @x end
+            def initialize(@x: Float); end
+            def foo() -> Float; return @x; end
           end
           putchar(A.new(65).foo())
         EOD
@@ -152,7 +152,7 @@ describe Esquis do
         src = <<~EOD
           extern i32 putchar(i32)
           class A
-            def initialize(@x: Float) do end
+            def initialize(@x: Float); end
           end
           putchar(A.new(65).x)
         EOD

@@ -4,22 +4,24 @@
     name.split('_').map(&:capitalize).join
   end
 
-  def repeat1(name, sep: nil)
+  def repeat1(name, sep: [])
     <<-EOD
     #{name}s : 
         #{name}
         { [val[0]] }
-      | #{name}s #{sep} #{name}
-        { val[0].push(val[#{sep ? 2 : 1}]) }
+      | #{name}s #{sep.join ' '} #{name}
+        { val[0].push(val[#{sep.length + 1}]) }
     EOD
   end
 
-  def repeat0(name, sep: nil)
+  # sep: token needed in between the sequence
+  # suffix: token needed at the end of the sequence
+  def repeat0(name, sep: [], suffix: nil)
     <<-EOD
     opt_#{name}s :
         /* NONE */ 
       { [] }
-      | #{name}s
+      | #{name}s #{suffix}
       { val[0] }
 
     #{repeat1(name, sep: sep)}
@@ -43,32 +45,37 @@ class Esquis::Parser
 rule
     program :
       opt_definitions
-      opt_statements
-      { Ast::Program.new(val[0],
-          Ast::Main.new(val[1])) }
+      opt_top_statements
+      { Ast::Program.new(val[0], Ast::Main.new(val[1])) }
+
+    # Same as statement but last `sep` is optional (i.e. `sep` is optional
+    # at the end of the source file)
+    top_statement:
+        statement
+    <%= repeat0 'top_statement', sep: ['sep'], suffix: 'opt_sep' %>
 
     definition :
         defclass
       | defun
       | extern
-    <%= repeat0 'definition' %>
+    <%= repeat0 'definition', sep: ['sep'], suffix: 'sep' %>
 
     defclass:
-      'class' IDENT
+      'class' IDENT sep
         opt_defmethods
       'end'
-      { Ast::DefClass.new(val[1], val[2]) }
+      { Ast::DefClass.new(val[1], val[3]) }
 
     defmethod:
         definitialize
-      | 'def' IDENT '(' opt_params ')' '->' IDENT 'do'
+      | 'def' IDENT '(' opt_params ')' _nl '->' _nl IDENT sep
            opt_statements
         'end'
-        { Ast::DefMethod.new(val[1], val[3], val[6], val[8]) }
-    <%= repeat0 'defmethod' %>
+        { Ast::DefMethod.new(val[1], val[3], val[8], val[10]) }
+    <%= repeat0 'defmethod', sep: ['sep'], suffix: 'sep' %>
 
     definitialize:
-        'def' 'initialize' '(' opt_iparams ')' 'do'
+        'def' 'initialize' '(' opt_iparams ')' sep
           opt_statements
         'end'
       { Ast::DefInitialize.new(val[3], val[6]) }
@@ -77,19 +84,19 @@ rule
         param
       | IVAR ':' IDENT
       { Ast::Param.new(val[0], val[2]) }
-    <%= repeat0 'iparam', sep: "','" %>
+    <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     defun:
-      'def' IDENT '(' opt_params ')' '->' IDENT 'do'
+      'def' IDENT '(' opt_params ')' _nl '->' _nl IDENT sep
          opt_statements
       'end'
-      { Ast::Defun.new(val[1], val[3], val[6], val[8]) }
-    <%= repeat0 'defun' %>
+      { Ast::Defun.new(val[1], val[3], val[8], val[10]) }
+    <%= repeat0 'defun', sep: ['sep'] %>
 
     param : 
       IDENT ':' IDENT
       { Ast::Param.new(val[0], val[2]) }
-    <%= repeat0 'param', sep: "','" %>
+    <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
 
     extern:
         'extern' IDENT IDENT '(' opt_param_types ')'
@@ -98,7 +105,7 @@ rule
     param_type :
         IDENT
       { Ast::Param.new(nil, val[0]) }
-    <%= repeat0 'param_type', sep: "','" %>
+    <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
 
     statement:
         if_stmt
@@ -106,24 +113,24 @@ rule
       | return_stmt
       | expression
       { Ast::ExprStmt.new(val[0]) }
-    <%= repeat0 'statement' %>
+    <%= repeat0 'statement', sep: ['sep'], suffix: 'sep' %>
 
     if_stmt:
-        'if' expression 'do' opt_statements 'end'
+        'if' expression sep opt_statements 'end'
       { Ast::If.new(val[1], val[3], []) }
-      | 'if' expression 'do' opt_statements elsif_clause
+      | 'if' expression sep opt_statements elsif_clause
       { Ast::If.new(val[1], val[3], val[4]) }
 
     elsif_clause:
-        'elsif' expression 'do' opt_statements elsif_clause
+        'elsif' expression sep opt_statements elsif_clause
       { [Ast::If.new(val[1], val[3], val[4])] }
-      | 'elsif' expression 'do' opt_statements 'end'
+      | 'elsif' expression sep opt_statements 'end'
       { [Ast::If.new(val[1], val[3], [])] }
-      | 'else' opt_statements 'end'
-      { val[1] }
+      | 'else' opt_sep opt_statements 'end'
+      { val[2] }
 
     for_stmt:
-        'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' 'do'
+        'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' sep
           opt_statements
         'end'
       { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[13]) }
@@ -163,7 +170,7 @@ rule
 
     arg:
         expression
-    <%= repeat0 'arg', sep: "','" %>
+    <%= repeat0 'arg', sep: ["_nl", "','", "_nl"] %>
 
     varref:
         IDENT
@@ -176,6 +183,25 @@ rule
       { Ast::Literal.new(val[0]) }
       | INTEGER
       { Ast::Literal.new(val[0]) }
+
+    nl:
+        '\n'
+
+    _nl:
+        /* NONE */
+      | nl
+
+    opt_sep:
+        /* NONE */
+      | sep
+
+    sep:
+        separator
+      | sep separator
+
+    separator:
+        nl
+      | ';'
 end
 
 ---- header
@@ -195,9 +221,11 @@ def parse(str)
   s = StringScanner.new(str)
   until s.empty?
     case
+    when s.scan(/\n/)
+      @q << ['\n', :NL]
     when s.scan(/\s+/)
       # skip whitespace
-    when s.scan(%r{#.*\n})
+    when s.scan(%r{#[^\n]*})
       # skip comment
     when m = s.scan(SYMBOLS)
       @q << [m, :SYMBOL]
