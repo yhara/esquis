@@ -1,5 +1,19 @@
 module Esquis
   module Type
+    # Returns it is allowed to pass a value of arg_ty as a parameter of 
+    # param_ty. Needed for current (ad-hoc) numeric type coersion rule.
+    def self.acceptable?(param_ty, arg_ty)
+      if param_ty == arg_ty ||
+         param_ty.llvm_type == arg_ty.llvm_type
+        true
+      elsif param_ty == TyRaw["i32"] && arg_ty == TyRaw["Float"]
+        # Will be coersed with fptosi (see Ast::FunCall#to_ll_r)
+        true
+      else
+        false
+      end
+    end
+
     class Base
     end
 

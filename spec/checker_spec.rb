@@ -129,6 +129,15 @@ describe "Esquis" do
           EOD
         }.to raise_error(Esquis::Ast::TypeMismatch)
       end
+
+      it "should allow passing Float to double extern arg" do
+        expect {
+          to_ll(<<~EOD)
+            extern double sqrt(double);
+            sqrt(56.0);
+          EOD
+        }.not_to raise_error
+      end
     end
 
     it "should check condition of if-stmt is Bool" do
