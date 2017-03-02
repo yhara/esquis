@@ -360,7 +360,8 @@ module Esquis
       def add_type!(env, cls)
         @ty ||= begin
           @cls = cls
-          super(env)
+          newenv = env.add_local_vars("self" => @cls.instance_ty)
+          super(newenv)
         end
       end
 

@@ -57,6 +57,28 @@ describe "Esquis" do
           EOD
         }.not_to raise_error
       end
+
+      it "should be able to refer `self`" do
+        expect {
+          to_ll(<<~EOD)
+            class A
+              def foo() -> Void; end
+              def bar() -> Void; self.foo(); end
+            end
+          EOD
+        }.not_to raise_error
+      end
+
+      it "should be able to call a method defined below"
+#        expect {
+#          to_ll(<<~EOD)
+#            class A
+#              def foo() -> Void; self.bar(); end
+#              def bar() -> Void; end
+#            end
+#          EOD
+#        }.not_to raise_error
+#      end
     end
 
     context "method/function call" do
