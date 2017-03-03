@@ -102,21 +102,22 @@ module Esquis
       private
 
       def add_type!(env)
-        @ty ||= begin
-          newenv = env
-          defs.each do |x|
-            case x
-            when DefClass
-              newenv = newenv.add_class(x.name, x)
-            when Defun, Extern
-              newenv = newenv.add_toplevel_func(x.name, x)
-            end
-          end
+        raise if @ty
+        @ty = NoType
 
-          defs.each{|x| x.add_type!(newenv) }
-          main.add_type!(newenv)
-          NoType
+        newenv = env
+        defs.each do |x|
+          case x
+          when DefClass
+            newenv = newenv.add_class(x.name, x)
+          when Defun, Extern
+            newenv = newenv.add_toplevel_func(x.name, x)
+          end
         end
+
+        defs.each{|x| x.add_type!(newenv) }
+        main.add_type!(newenv)
+        return nil
       end
 
       def to_ll
@@ -153,10 +154,11 @@ module Esquis
       end
 
       def add_type!(env)
-        @ty ||= begin
-          stmts.each{|x| x.add_type!(env)}
-          NoType
-        end
+        raise if @ty
+        @ty = NoType
+        newenv = env
+        stmts.each{|x| newenv = x.add_type!(newenv)}
+        return nil
       end
 
       def to_ll
@@ -204,7 +206,7 @@ module Esquis
         end
         @ivars = @initialize.ivars
 
-        @new = DefMethod.new("new", @initialize.params, @name, [])
+        @new = DefMethod.new("new", @initialize.params.map(&:dup), @name, [])
         @class_methods = {"new" => @new}
 
         getters = @ivars.map{|ivar|
@@ -224,24 +226,25 @@ module Esquis
       end
 
       def add_type!(env)
-        @ty ||= begin
-          # Note: we must run add_type! on @ivars before @new,
-          # because the former has an extra parameter(idx) :-(
-          idx = 0
-          @ivars.each do |x|
-            if x.name[0] == "@"
-              x.add_type!(env, (idx += 1))
-            else
-              x.add_type!(env)
-            end
+        raise if @ty
+        @ty = TyRaw["Class"]
+
+        # Note: we must run add_type! on @ivars before @new,
+        # because the former has an extra parameter(idx) :-(
+        idx = 0
+        @ivars.each do |x|
+          if x.name[0] == "@"
+            x.add_type!(env, (idx += 1))
+          else
+            x.add_type!(env)
           end
-
-          @new.add_type!(env, self)
-
-          newenv = env.set_selfcls(self)
-          @instance_methods.each_value{|x| x.add_type!(newenv, self)}
-          TyRaw["Class"]
         end
+
+        @new.add_type!(env, self)
+
+        newenv = env.set_selfcls(self)
+        @instance_methods.each_value{|x| x.add_type!(newenv, self)}
+        return nil
       end
 
       def to_ll
@@ -287,14 +290,15 @@ module Esquis
       end
 
       def add_type!(env)
-        return @ty if @ty
+        raise if @ty
 
-        params.each{|x| x.add_type!(env)}
+        newenv = env
+        params.each{|x| newenv = x.add_type!(newenv)}
         @ty = TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
 
         lvars = params.map{|x| [x.name, x.ty]}.to_h
-        newenv = env.add_local_vars(lvars)
-        body_stmts.each{|x| x.add_type!(newenv)}
+        newenv = newenv.add_local_vars(lvars)
+        body_stmts.each{|x| newenv = x.add_type!(newenv)}
 
         last_ty = (body_stmts.empty? ? TyRaw["Void"] : body_stmts.last.ty)
         if name != "new" && ret_type_name != "Void" && !manual_return?
@@ -305,7 +309,7 @@ module Esquis
           end
         end
 
-        @ty
+        return nil
       end
 
       def to_ll(funname: name, self_param: nil, init_ll: nil)
@@ -358,11 +362,11 @@ module Esquis
 
     class DefMethod < Defun
       def add_type!(env, cls)
-        @ty ||= begin
-          @cls = cls
-          newenv = env.add_local_vars("self" => @cls.instance_ty)
-          super(newenv)
-        end
+        raise if @ty
+        @cls = cls
+        newenv = env.add_local_vars("self" => @cls.instance_ty)
+        super(newenv)
+        return nil
       end
 
       def full_name
@@ -384,7 +388,7 @@ module Esquis
       def ret_type_name; "Void"; end
 
       def ivars
-        params.select{|x| x.name.start_with?("@")}
+        @ivars ||= params.select{|x| x.name.start_with?("@")}.map(&:dup)
       end
 
       def to_ll
@@ -406,10 +410,14 @@ module Esquis
       attr_reader :idx  # used for ivar
 
       def add_type!(env, idx=nil)
-        @ty ||= begin
-          @idx = idx if idx
-          TyRaw[type_name]
-        end
+        raise self.inspect if @ty
+        @ty = TyRaw[type_name]
+        @idx = idx if idx
+        return env
+      end
+
+      def dup
+        Param.new(name, type_name)
       end
 
       def to_ll
@@ -437,10 +445,10 @@ module Esquis
       end
 
       def add_type!(env)
-        @ty ||= begin
-          params.each{|x| x.add_type!(env)}
-          TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
-        end
+        raise if @ty
+        params.each{|x| x.add_type!(env)}
+        @ty = TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
+        return nil
       end
 
       def to_ll
@@ -459,15 +467,18 @@ module Esquis
       props :cond_expr, :then_stmts, :else_stmts
 
       def add_type!(env)
-        @ty ||= begin
-          cond_ty = cond_expr.add_type!(env)
-          if cond_ty != TyRaw["Bool"]
-            raise TypeMismatch, "condition of if-stmt must be Bool (got #{cond_ty})"
-          end
+        raise if @ty
+        @ty = NoType
 
-          then_stmts.each{|x| x.add_type!(env)}
-          else_stmts.each{|x| x.add_type!(env)}
+        newenv = cond_expr.add_type!(env)
+        cond_ty = cond_expr.ty
+        if cond_ty != TyRaw["Bool"]
+          raise TypeMismatch, "condition of if-stmt must be Bool (got #{cond_ty})"
         end
+
+        then_stmts.each{|x| newnev = x.add_type!(newenv)}
+        else_stmts.each{|x| newnev = x.add_type!(newenv)}
+        return newenv
       end
 
       def to_ll
@@ -498,15 +509,15 @@ module Esquis
         :begin_expr, :end_expr, :step_expr, :body_stmts
 
       def add_type!(env)
-        @ty ||= begin
-          begin_expr.add_type!(env)
-          end_expr.add_type!(env)
-          step_expr.add_type!(env)
+        raise if @ty
+        @ty = NoType
+        newenv = begin_expr.add_type!(env)
+        newenv = end_expr.add_type!(newenv)
+        newenv = step_expr.add_type!(newenv)
 
-          newenv = env.add_local_vars(varname => TyRaw[var_type_name])
-          body_stmts.each{|x| x.add_type!(newenv)}
-          NoType
-        end
+        newenv = newenv.add_local_vars(varname => TyRaw[var_type_name])
+        body_stmts.each{|x| newenv = x.add_type!(newenv)}
+        return newenv
       end
 
       def to_ll
@@ -546,10 +557,9 @@ module Esquis
       props :expr
 
       def add_type!(env)
-        @ty ||= begin
-          expr.add_type!(env)
-          NoType
-        end
+        raise if @ty
+        @ty = NoType
+        return expr.add_type!(env)
       end
 
       def to_ll
@@ -566,10 +576,10 @@ module Esquis
       props :expr
 
       def add_type!(env)
-        @ty ||= begin
-          expr.add_type!(env)
-          expr.ty
-        end
+        raise if @ty
+        newenv = expr.add_type!(env)
+        @ty = expr.ty
+        newenv
       end
 
       def to_ll
@@ -599,14 +609,12 @@ module Esquis
       props :op, :left_expr, :right_expr
 
       def add_type!(env)
-        @ty ||= begin
-          left_expr.add_type!(env)
-          right_expr.add_type!(env)
+        raise if @ty
+        @ty, _ = BINOPS[@op]
+        raise "operator not implemented: #{@op}" unless @ty
 
-          ty, _ = BINOPS[@op]
-          raise "operator not implemented: #{@op}" unless ty
-          ty
-        end
+        newenv = left_expr.add_type!(env)
+        return right_expr.add_type!(newenv)
       end
 
       def to_ll_r
@@ -625,10 +633,9 @@ module Esquis
       props :op, :expr
 
       def add_type!(env)
-        @ty ||= begin
-          expr.add_type!(env)
-          TyRaw["Float"]
-        end
+        raise if @ty
+        @ty = TyRaw["Float"]
+        return expr.add_type!(env)
       end
 
       def to_ll_r
@@ -646,24 +653,25 @@ module Esquis
       props :name, :args
 
       def add_type!(env)
-        @ty ||= begin
-          args.each{|x| x.add_type!(env)}
-          unless (@func = env.find_toplevel_func(name))
-            raise "undefined function: #{name.inspect}"
-          end
-          if args.length != @func.arity
-            raise ArityMismatch,
-              "#{name} takes #{@func.arity} args but got #{args.length} args"
-          end
-          @func.params.zip(args) do |param, arg|
-            if !Esquis::Type.acceptable?(param.ty, arg.ty)
-              raise TypeMismatch,
-                "parameter #{param.name} of #{name} is #{param.ty}"+
-                " but got #{arg.ty}"
-            end
-          end
-          @func.ty.ret_ty
+        raise if @ty
+
+        args.each{|x| x.add_type!(env)}
+        unless (@func = env.find_toplevel_func(name))
+          raise "undefined function: #{name.inspect}"
         end
+        if args.length != @func.arity
+          raise ArityMismatch,
+            "#{name} takes #{@func.arity} args but got #{args.length} args"
+        end
+        @func.params.zip(args) do |param, arg|
+          if !Esquis::Type.acceptable?(param.ty, arg.ty)
+            raise TypeMismatch,
+              "parameter #{param.name} of #{name} is #{param.ty}"+
+              " but got #{arg.ty}"
+          end
+        end
+        @ty = @func.ty.ret_ty
+        env
       end
 
       def to_ll_r(funname: name, funmeth: @func, self_ty: nil, arg_exprs: @args)
@@ -710,29 +718,32 @@ module Esquis
       props :receiver_expr, :method_name, :args
 
       def add_type!(env)
-        @ty ||= begin
-          receiver_ty = receiver_expr.add_type!(env)
-          if receiver_ty == TyRaw["Class"]
-            # Class method call (only .new is currently supported)
-            @method = env.fetch_class_method(receiver_expr.name, "new")
-          else
-            @method = env.fetch_instance_method(receiver_ty, method_name)
-          end
-          args.each{|x| x.add_type!(env)}
+        raise if @ty
 
-          if args.length != @method.arity
-            raise ArityMismatch,
-              "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
-          end
-          @method.params.zip(args) do |param, arg|
-            if param.ty != arg.ty
-              raise TypeMismatch,
-                "parameter #{param.name} of #{@method.full_name} "+
-                "is #{param.ty} but got #{arg.ty.inspect}"
-            end
-          end
-          @method.ty.ret_ty
+        newenv = receiver_expr.add_type!(env)
+        receiver_ty = receiver_expr.ty
+        if receiver_ty == TyRaw["Class"]
+          # Class method call (only .new is currently supported)
+          @method = env.fetch_class_method(receiver_expr.name, "new")
+        else
+          @method = env.fetch_instance_method(receiver_ty, method_name)
         end
+        args.each{|x| newenv = x.add_type!(newenv)}
+
+        if args.length != @method.arity
+          raise ArityMismatch,
+            "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
+        end
+        @method.params.zip(args) do |param, arg|
+          if param.ty != arg.ty
+            raise TypeMismatch,
+              "parameter #{param.name} of #{@method.full_name} "+
+              "is #{param.ty} but got #{arg.ty.inspect}"
+          end
+        end
+
+        @ty = @method.ty.ret_ty
+        newenv
       end
 
       def to_ll_r
@@ -755,18 +766,19 @@ module Esquis
       props :name
 
       def add_type!(env)
-        @ty ||= begin
-          if (ty = env.find_local_var(name))
-            ty
-          elsif (@ivar = env.find_instance_var(name))
-            @selfcls = env.selfcls
-            @ivar.ty
-          elsif (cls = env.find_class(name))
-            TyRaw["Class"]
-          else
-            raise "undefined variable: #{name}"
-          end
-        end
+        raise if @ty
+
+        @ty = if (ty = env.find_local_var(name))
+                ty
+              elsif (@ivar = env.find_instance_var(name))
+                @selfcls = env.selfcls
+                @ivar.ty
+              elsif (cls = env.find_class(name))
+                TyRaw["Class"]
+              else
+                raise "undefined variable: #{name}"
+              end
+        env
       end
 
       def to_ll_r
@@ -792,15 +804,16 @@ module Esquis
       props :value
 
       def add_type!(env)
-        @ty ||= begin
-          case @value
-          when Float then TyRaw["Float"]
-          when Integer 
-            # Currently, all numbers in Esquis are treated as Float
-            TyRaw["Float"]
-          else raise
-          end
-        end
+        raise if @ty
+
+        @ty = case @value
+              when Float then TyRaw["Float"]
+              when Integer 
+                # Currently, all numbers in Esquis are treated as Float
+                TyRaw["Float"]
+              else raise
+              end
+        env
       end
 
       def to_ll_r
