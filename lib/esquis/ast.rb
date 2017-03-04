@@ -67,6 +67,24 @@ module Esquis
       # @param env[Hash<String, Type>]
       # def add_type!(env)
       # end
+
+      #
+      # Debug print for add_type!
+      #
+      module DebugAddType
+        @@lv = 0
+        def add_type!(env, *rest)
+          print " "*@@lv; p [self, env && env.local_vars.keys]
+          @@lv += 2
+          env = super(env, *rest)
+          @@lv -= 2
+          print " "*@@lv; p [self, env && env.local_vars.keys]
+          env
+        end
+      end
+      def self.inherited(cls)
+        #cls.prepend DebugAddType
+      end
     end
 
     # The whole program
