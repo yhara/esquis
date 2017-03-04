@@ -784,7 +784,7 @@ module Esquis
       end
     end
 
-    class Assignment < Node
+    class AssignLvar < Node
       props :varname, :expr
 
       def add_type!(env)
@@ -802,6 +802,36 @@ module Esquis
         ll = [
           *ll_expr,
           "  #{r} = bitcast #{t} #{r_expr} to #{t}"
+        ]
+        return ll, r
+      end
+    end
+
+    class AssignIvar < Node
+      props :varname, :expr
+
+      def add_type!(env)
+        raise if @ty
+
+        expr.add_type!(env)
+        @cls = env.selfcls
+        @ivar = env.find_instance_var(varname)
+        # TODO: check type of expr
+        @ty = expr.ty
+        return env
+      end
+
+      def to_ll_r
+        it = @ty.llvm_type
+        inst = %Q{"#{@cls.name}"}
+        r = "%#{varname}"
+        ll_expr, r_expr = *expr.to_ll_r
+
+        r_addr = newreg
+        ll = [
+          *ll_expr,
+          "  #{r_addr} = getelementptr inbounds %#{inst}, %#{inst}* %self, i32 0, i32 #{@ivar.idx}",
+          "  store #{it} #{r_expr}, #{it}* #{r_addr}",
         ]
         return ll, r
       end
