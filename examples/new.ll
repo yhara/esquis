@@ -33,17 +33,18 @@ define double @"A#x"(%"A"* %self) {
   %reg1 = getelementptr inbounds %"A", %"A"* %self, i32 0, i32 1
   %reg2 = load double, double* %reg1
   ret double %reg2
-  ret double 0.0
 }
 define void @"A#initialize"(%"A"* %self, double %"@x") {
   %ivar1_addr = getelementptr inbounds %"A", %"A"* %self, i32 0, i32 1
   store double %"@x", double* %ivar1_addr
 
-  ret void 
+  ret void
 }
 define i32 @main() {
   call void @GC_init()
-  %reg3 = call %"A"* @"A.new"(double 65.0)
+  %a = alloca double
+  store double 65.0, double* %a
+  %reg3 = call %"A"* @"A.new"(double %a)
   %reg4 = call double @"A#x"(%"A"* %reg3)
   %reg5 = fptosi double %reg4 to i32
   %reg6 = call i32 @putchar(i32 %reg5)

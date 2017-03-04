@@ -135,6 +135,17 @@ describe Esquis do
       expect(run(src)).to eq("ACE")
     end
 
+    context 'lvar' do
+      it 'assignment' do
+        src = <<-EOD
+          extern i32 putchar(i32)
+          a = 60 + 5
+          putchar(a)
+        EOD
+        expect(run(src)).to eq("A")
+      end
+    end
+
     context 'ivar' do
       it 'reference with name' do
         src = <<~EOD

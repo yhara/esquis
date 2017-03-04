@@ -142,6 +142,7 @@ rule
     expression:
         method_call
       | fcall
+      | assignment
       | varref
       | literal
 
@@ -167,6 +168,10 @@ rule
     fcall:
         IDENT '(' opt_args ')'
       { Ast::FunCall.new(val[0], val[2]) }
+
+    assignment:
+        IDENT '=' expression
+      { Ast::Assignment.new(val[0], val[2]) }
 
     arg:
         expression
