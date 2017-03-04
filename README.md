@@ -17,3 +17,10 @@ $ bundle install
 $ bundle exec esquis exec examples/a.es
 $ bundle exec rake test
 ```
+
+## Language spec (memo)
+
+This is a memo of 'how esquis behaves now', not 'how esquis should behave'.
+
+- lvar
+  - It is not allowed to reassign to local variable

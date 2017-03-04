@@ -1,5 +1,6 @@
-extern i32 putchar(i32);
+extern i32 putchar(i32)
 class A
-  def initialize(@x: Float) { }
+  def initialize(@x: Float); end
 end
-putchar(A.new(65).x);
+a = 65
+putchar(A.new(a).x)

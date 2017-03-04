@@ -762,6 +762,29 @@ module Esquis
       end
     end
 
+    class Assignment < Node
+      props :varname, :expr
+
+      def add_type!(env)
+        raise if @ty
+
+        expr.add_type!(env)
+        @ty = expr.ty
+        return env.add_local_vars(varname => @ty)
+      end
+
+      def to_ll_r
+        t = @ty.llvm_type
+        r = "%#{varname}"
+        ll_expr, r_expr = *expr.to_ll_r
+        ll = [
+          *ll_expr,
+          "  #{r} = bitcast #{t} #{r_expr} to #{t}"
+        ]
+        return ll, r
+      end
+    end
+
     class VarRef < Node
       props :name
 
