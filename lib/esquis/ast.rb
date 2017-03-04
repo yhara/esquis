@@ -494,8 +494,8 @@ module Esquis
           raise TypeMismatch, "condition of if-stmt must be Bool (got #{cond_ty})"
         end
 
-        then_stmts.each{|x| newnev = x.add_type!(newenv)}
-        else_stmts.each{|x| newnev = x.add_type!(newenv)}
+        then_stmts.each{|x| newenv = x.add_type!(newenv)}
+        else_stmts.each{|x| newenv = x.add_type!(newenv)}
         return newenv
       end
 
