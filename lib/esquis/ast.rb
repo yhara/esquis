@@ -604,6 +604,10 @@ module Esquis
         ll, r = @expr.to_ll_r
         return ll
       end
+
+      def inspect
+        "#<ExprStmt #{@expr.inspect}>"
+      end
     end
 
     BINOPS = {
@@ -866,6 +870,10 @@ module Esquis
         else
           raise
         end
+      end
+
+      def inspect
+        "#<Literal #{@value.inspect}>"
       end
     end
 
