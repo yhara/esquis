@@ -44,8 +44,8 @@ class Esquis::Parser
 
 rule
     program :
-      opt_definitions
-      opt_top_statements
+        opt_definitions
+        opt_top_statements
       { Ast::Program.new(val[0], Ast::Main.new(val[1])) }
 
     # Same as statement but last `sep` is optional (i.e. `sep` is optional
@@ -61,10 +61,10 @@ rule
     <%= repeat0 'definition', sep: ['sep'], suffix: 'sep' %>
 
     defclass:
-      'class' IDENT sep
-        opt_defmethods
-      'end'
-      { Ast::DefClass.new(val[1], val[3]) }
+        'class' IDENT sep
+          opt_defmethods
+        'end'
+        { Ast::DefClass.new(val[1], val[3]) }
 
     defmethod:
         definitialize
@@ -78,33 +78,33 @@ rule
         'def' 'initialize' '(' opt_iparams ')' sep
           opt_statements
         'end'
-      { Ast::DefInitialize.new(val[3], val[6]) }
+        { Ast::DefInitialize.new(val[3], val[6]) }
 
     iparam : 
         param
       | IVAR ':' IDENT
-      { Ast::Param.new(val[0], val[2]) }
+        { Ast::Param.new(val[0], val[2]) }
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     defun:
-      'def' IDENT '(' opt_params ')' _nl '->' _nl IDENT sep
-         opt_statements
-      'end'
-      { Ast::Defun.new(val[1], val[3], val[8], val[10]) }
+        'def' IDENT '(' opt_params ')' _nl '->' _nl IDENT sep
+           opt_statements
+        'end'
+        { Ast::Defun.new(val[1], val[3], val[8], val[10]) }
     <%= repeat0 'defun', sep: ['sep'] %>
 
     param : 
-      IDENT ':' IDENT
-      { Ast::Param.new(val[0], val[2]) }
+        IDENT ':' IDENT
+        { Ast::Param.new(val[0], val[2]) }
     <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
 
     extern:
         'extern' IDENT IDENT '(' opt_param_types ')'
-      { Ast::Extern.new(val[1], val[2], val[4]) }
+        { Ast::Extern.new(val[1], val[2], val[4]) }
 
     param_type :
         IDENT
-      { Ast::Param.new(nil, val[0]) }
+        { Ast::Param.new(nil, val[0]) }
     <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
 
     statement:
@@ -112,32 +112,32 @@ rule
       | for_stmt
       | return_stmt
       | expression
-      { Ast::ExprStmt.new(val[0]) }
+        { Ast::ExprStmt.new(val[0]) }
     <%= repeat0 'statement', sep: ['sep'], suffix: 'sep' %>
 
     if_stmt:
         'if' expression sep opt_statements 'end'
-      { Ast::If.new(val[1], val[3], []) }
+        { Ast::If.new(val[1], val[3], []) }
       | 'if' expression sep opt_statements elsif_clause
-      { Ast::If.new(val[1], val[3], val[4]) }
+        { Ast::If.new(val[1], val[3], val[4]) }
 
     elsif_clause:
         'elsif' expression sep opt_statements elsif_clause
-      { [Ast::If.new(val[1], val[3], val[4])] }
+        { [Ast::If.new(val[1], val[3], val[4])] }
       | 'elsif' expression sep opt_statements 'end'
-      { [Ast::If.new(val[1], val[3], [])] }
+        { [Ast::If.new(val[1], val[3], [])] }
       | 'else' opt_sep opt_statements 'end'
-      { val[2] }
+        { val[2] }
 
     for_stmt:
         'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' sep
           opt_statements
         'end'
-      { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[13]) }
+        { Ast::For.new(val[2], val[4], val[6], val[8], val[10], val[13]) }
 
     return_stmt:
         'return' expression
-      { Ast::Return.new(val[1]) }
+        { Ast::Return.new(val[1]) }
 
     expression:
         method_call
@@ -150,33 +150,33 @@ rule
       <% ops = %w(+ - * / % > < >= <= == != && ||) %>
       <% ops.each do |op| %>
       | expression '<%= op %>' expression
-      { Ast::BinExpr.new("<%= op %>", val[0], val[2]) }
+        { Ast::BinExpr.new("<%= op %>", val[0], val[2]) }
       <% end %>
 
       | '-' expression =UMINUS
-      { Ast::UnaryExpr.new("-", val[1]) }
+        { Ast::UnaryExpr.new("-", val[1]) }
 
       | '(' expression ')'
-      { val[1] }
+        { val[1] }
     <%= repeat0 'expression' %>
 
     method_call:
         expression '.' IDENT '(' opt_args ')'
-      { Ast::MethodCall.new(val[0], val[2], val[4]) }
+        { Ast::MethodCall.new(val[0], val[2], val[4]) }
       | expression '.' IDENT
-      { Ast::MethodCall.new(val[0], val[2], []) }
+        { Ast::MethodCall.new(val[0], val[2], []) }
 
     fcall:
         IDENT '(' opt_args ')'
-      { Ast::FunCall.new(val[0], val[2]) }
+        { Ast::FunCall.new(val[0], val[2]) }
 
     assign_lvar:
         IDENT '=' expression
-      { Ast::AssignLvar.new(val[0], val[2]) }
+        { Ast::AssignLvar.new(val[0], val[2]) }
 
     assign_ivar:
         IVAR '=' expression
-      { Ast::AssignIvar.new(val[0], val[2]) }
+        { Ast::AssignIvar.new(val[0], val[2]) }
 
     arg:
         expression
@@ -190,9 +190,9 @@ rule
 
     literal:
         FLOAT
-      { Ast::Literal.new(val[0]) }
+        { Ast::Literal.new(val[0]) }
       | INTEGER
-      { Ast::Literal.new(val[0]) }
+        { Ast::Literal.new(val[0]) }
 
     nl:
         '\n'
