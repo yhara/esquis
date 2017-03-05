@@ -73,17 +73,23 @@ rule
 
     defmethod:
         definitialize
-      | 'def' method_name '(' opt_params ')' _nl '->' _nl IDENT sep
+      | 'def' method_name opt_paramlist _nl '->' _nl IDENT sep
            opt_statements
         'end'
-        { Ast::DefMethod.new(val[1], val[3], val[8], val[10]) }
+        { Ast::DefMethod.new(val[1], val[2], val[6], val[8]) }
     <%= repeat0 'defmethod', sep: ['sep'], suffix: 'sep' %>
 
     definitialize:
-        'def' 'initialize' '(' opt_iparams ')' sep
+        'def' 'initialize' opt_iparamlist sep
           opt_statements
         'end'
-        { Ast::DefInitialize.new(val[3], val[6]) }
+        { Ast::DefInitialize.new(val[2], val[4]) }
+
+    opt_iparamlist:
+        /* NONE */
+        { [] }
+      | '(' opt_iparams ')'
+        { val[1] }
 
     iparam : 
         param
@@ -92,11 +98,17 @@ rule
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     defun:
-        'def' method_name '(' opt_params ')' _nl '->' _nl IDENT sep
+        'def' method_name opt_paramlist _nl '->' _nl IDENT sep
            opt_statements
         'end'
-        { Ast::Defun.new(val[1], val[3], val[8], val[10]) }
+        { Ast::Defun.new(val[1], val[2], val[6], val[8]) }
     <%= repeat0 'defun', sep: ['sep'] %>
+
+    opt_paramlist:
+        /* NONE */
+        { [] }
+      | '(' opt_params ')'
+        { val[1] }
 
     param : 
         IDENT ':' IDENT

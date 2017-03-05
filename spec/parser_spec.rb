@@ -34,13 +34,13 @@ describe "Parser" do
   context 'method definition' do
     it 'allow names with `!`' do
       expect {
-        parse("class A; def foo!() -> Void; end; end; A.new.foo!")
+        parse("class A; def foo! -> Void; end; end; A.new.foo!")
       }.not_to raise_error
     end
 
     it 'allow names with `!`' do
       expect {
-        parse("class A; def foo?() -> Void; end; end; A.new.foo?")
+        parse("class A; def foo? -> Void; end; end; A.new.foo?")
       }.not_to raise_error
     end
   end
