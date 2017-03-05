@@ -4,7 +4,7 @@
     name.split('_').map(&:capitalize).join
   end
 
-  def repeat1(name, sep: [])
+  def repeat1(name, sep: [], suffix: nil)
     <<-EOD
     #{name}s : 
         #{name}
@@ -44,21 +44,26 @@ class Esquis::Parser
 
 rule
     program :
-        opt_definitions
-        opt_top_statements
-      { Ast::Program.new(val[0], Ast::Main.new(val[1])) }
+        definitions sep top_statements opt_sep
+        { Ast::Program.new(val[0], Ast::Main.new(val[2])) }
+      | definitions opt_sep
+        { Ast::Program.new(val[0], Ast::Main.new([])) }
+      | top_statements opt_sep
+        { Ast::Program.new([],     Ast::Main.new(val[0])) }
+      | /* NONE */
+        { Ast::Program.new([],     Ast::Main.new([])) }
 
     # Same as statement but last `sep` is optional (i.e. `sep` is optional
     # at the end of the source file)
     top_statement:
         statement
-    <%= repeat0 'top_statement', sep: ['sep'], suffix: 'opt_sep' %>
+    <%= repeat0 'top_statement', sep: ['sep'] %>
 
     definition :
         defclass
       | defun
       | extern
-    <%= repeat0 'definition', sep: ['sep'], suffix: 'sep' %>
+    <%= repeat1 'definition', sep: ['sep'] %>
 
     defclass:
         'class' IDENT sep
