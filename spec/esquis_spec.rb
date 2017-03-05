@@ -65,9 +65,9 @@ describe Esquis do
     end
 
     it '==' do
-      src = "extern i32 putchar(i32); if 1 == 1; putchar(65); end"
+      src = "extern i32 putchar(i32); if true; putchar(65); end"
       expect(run(src)).to eq("A")
-      src = "extern i32 putchar(i32); if 1 == 2; putchar(65); end"
+      src = "extern i32 putchar(i32); if false; putchar(65); end"
       expect(run(src)).to eq("")
     end
 

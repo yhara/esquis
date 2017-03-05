@@ -881,6 +881,7 @@ module Esquis
         raise if @ty
 
         @ty = case @value
+              when true, false then TyRaw["Bool"]
               when Float then TyRaw["Float"]
               when Integer 
                 # Currently, all numbers in Esquis are treated as Float
@@ -892,6 +893,10 @@ module Esquis
 
       def to_ll_r
         case @value
+        when true
+          return [], "1"
+        when false
+          return [], "0"
         when Float
           return [], @value.to_s
         when Integer

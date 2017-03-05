@@ -209,6 +209,10 @@ rule
         { Ast::Literal.new(val[0]) }
       | INTEGER
         { Ast::Literal.new(val[0]) }
+      | 'true'
+        { Ast::Literal.new(true) }
+      | 'false'
+        { Ast::Literal.new(false) }
 
     method_name:
         IDENT
@@ -238,7 +242,7 @@ end
 require 'strscan'
 
 ---- inner
-KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return/
+KEYWORDS = /extern|class|def|initialize|do|end|if|elsif|else|for|return|true|false/
 
 SYMBOLS = Regexp.union(*"
 ... >= <= == != && || -> < > ( ) { } . + - * / % = , ; :
