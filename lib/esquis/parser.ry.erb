@@ -6,7 +6,7 @@
 
   def repeat1(name, sep: [], suffix: nil)
     <<-EOD
-    #{name}s : 
+    #{name}s: 
         #{name}
         { [val[0]] }
       | #{name}s #{sep.join ' '} #{name}
@@ -18,7 +18,7 @@
   # suffix: token needed at the end of the sequence
   def repeat0(name, sep: [], suffix: nil)
     <<-EOD
-    opt_#{name}s :
+    opt_#{name}s:
         /* NONE */ 
       { [] }
       | #{name}s #{suffix}
@@ -43,7 +43,7 @@ class Esquis::Parser
   preclow
 
 rule
-    program :
+    program:
         definitions sep top_statements opt_sep
         { Ast::Program.new(val[0], Ast::Main.new(val[2])) }
       | definitions opt_sep
@@ -59,7 +59,7 @@ rule
         statement
     <%= repeat0 'top_statement', sep: ['sep'] %>
 
-    definition :
+    definition:
         defclass
       | defun
       | extern
@@ -91,7 +91,7 @@ rule
       | '(' opt_iparams ')'
         { val[1] }
 
-    iparam : 
+    iparam: 
         param
       | IVAR ':' IDENT
         { Ast::Param.new(val[0], val[2]) }
@@ -110,7 +110,7 @@ rule
       | '(' opt_params ')'
         { val[1] }
 
-    param : 
+    param: 
         IDENT ':' IDENT
         { Ast::Param.new(val[0], val[2]) }
     <%= repeat0 'param', sep: ["_nl", "','", "_nl"] %>
@@ -119,7 +119,7 @@ rule
         'extern' IDENT IDENT '(' opt_param_types ')'
         { Ast::Extern.new(val[1], val[2], val[4]) }
 
-    param_type :
+    param_type:
         IDENT
         { Ast::Param.new(nil, val[0]) }
     <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
