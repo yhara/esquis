@@ -113,20 +113,6 @@ rule
       | expression
     <%= repeat0 'statement', sep: ['sep'], suffix: 'sep' %>
 
-    if_expr:
-        'if' expression sep opt_statements 'end'
-        { Ast::If.new(val[1], val[3], []) }
-      | 'if' expression sep opt_statements elsif_clause
-        { Ast::If.new(val[1], val[3], val[4]) }
-
-    elsif_clause:
-        'elsif' expression sep opt_statements elsif_clause
-        { [Ast::If.new(val[1], val[3], val[4])] }
-      | 'elsif' expression sep opt_statements 'end'
-        { [Ast::If.new(val[1], val[3], [])] }
-      | 'else' opt_sep opt_statements 'end'
-        { val[2] }
-
     for_stmt:
         'for' '(' IDENT ':' IDENT ';' expression '...' expression ';' expression ')' sep
           opt_statements
@@ -158,6 +144,20 @@ rule
       | '(' expression ')'
         { val[1] }
     <%= repeat0 'expression' %>
+
+    if_expr:
+        'if' expression sep opt_statements 'end'
+        { Ast::If.new(val[1], val[3], []) }
+      | 'if' expression sep opt_statements elsif_clause
+        { Ast::If.new(val[1], val[3], val[4]) }
+
+    elsif_clause:
+        'elsif' expression sep opt_statements elsif_clause
+        { [Ast::If.new(val[1], val[3], val[4])] }
+      | 'elsif' expression sep opt_statements 'end'
+        { [Ast::If.new(val[1], val[3], [])] }
+      | 'else' opt_sep opt_statements 'end'
+        { val[2] }
 
     method_call:
         expression '.' IDENT '(' opt_args ')'

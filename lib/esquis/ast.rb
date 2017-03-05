@@ -482,65 +482,6 @@ module Esquis
       end
     end
 
-    class If < Node
-      props :cond_expr, :then_stmts, :else_stmts
-
-      def add_type!(env)
-        raise if @ty
-
-        newenv = cond_expr.add_type!(env)
-        cond_ty = cond_expr.ty
-        if cond_ty != TyRaw["Bool"]
-          raise TypeMismatch, "condition of if-stmt must be Bool (got #{cond_ty})"
-        end
-
-        then_stmts.each{|x| newenv = x.add_type!(newenv)}
-        else_stmts.each{|x| newenv = x.add_type!(newenv)}
-        if else_stmts.any? && then_stmts.any?
-          if then_stmts.last.ty != else_stmts.last.ty
-            raise TypeMismatch, "then clause is #{then_stmts.last.ty} but"+
-              " else clause is #{else_stmts.last.ty}"
-          end
-        end
-        @ty = then_stmts.last.ty
-        return newenv
-      end
-
-      def to_ll_r
-        i = newif
-        t = @ty.llvm_type
-        cond_ll, cond_r = @cond_expr.to_ll_r
-        then_ll, then_r = [], nil
-        else_ll, else_r = [], nil
-        @then_stmts.each{|x| ll, then_r = x.to_ll_r; then_ll.concat(ll)}
-        @else_stmts.each{|x| ll, else_r = x.to_ll_r; else_ll.concat(ll)}
-
-        r_if = newreg
-        ll = []
-        ll.concat cond_ll
-        ll << "  br i1 #{cond_r}, label %Then#{i}, label %Else#{i}"
-
-        ll << "Then#{i}:"
-        ll.concat then_ll
-        ll << "  br label %ThenEnd#{i}"
-        ll << "ThenEnd#{i}:"
-        ll << "  br label %EndIf#{i}"
-
-        ll << "Else#{i}:"
-        ll.concat else_ll
-        ll << "  br label %ElseEnd#{i}"
-        ll << "ElseEnd#{i}:"
-        ll << "  br label %EndIf#{i}"
-
-        ll << "EndIf#{i}:"
-        unless @else_stmts.empty?
-          ll << "  #{r_if} = phi #{t} [#{then_r}, %ThenEnd#{i}], "+
-                                     "[#{else_r}, %ElseEnd#{i}]"
-        end
-        return ll, r_if
-      end
-    end
-
     class For < Node
       props :varname, :var_type_name,
         :begin_expr, :end_expr, :step_expr, :body_stmts
@@ -606,6 +547,65 @@ module Esquis
         ll.concat expr_ll
         ll << "  ret #{expr.ty.llvm_type} #{expr_r}"
         return ll, :novalue
+      end
+    end
+
+    class If < Node
+      props :cond_expr, :then_stmts, :else_stmts
+
+      def add_type!(env)
+        raise if @ty
+
+        newenv = cond_expr.add_type!(env)
+        cond_ty = cond_expr.ty
+        if cond_ty != TyRaw["Bool"]
+          raise TypeMismatch, "condition of if-stmt must be Bool (got #{cond_ty})"
+        end
+
+        then_stmts.each{|x| newenv = x.add_type!(newenv)}
+        else_stmts.each{|x| newenv = x.add_type!(newenv)}
+        if else_stmts.any? && then_stmts.any?
+          if then_stmts.last.ty != else_stmts.last.ty
+            raise TypeMismatch, "then clause is #{then_stmts.last.ty} but"+
+              " else clause is #{else_stmts.last.ty}"
+          end
+        end
+        @ty = then_stmts.last.ty
+        return newenv
+      end
+
+      def to_ll_r
+        i = newif
+        t = @ty.llvm_type
+        cond_ll, cond_r = @cond_expr.to_ll_r
+        then_ll, then_r = [], nil
+        else_ll, else_r = [], nil
+        @then_stmts.each{|x| ll, then_r = x.to_ll_r; then_ll.concat(ll)}
+        @else_stmts.each{|x| ll, else_r = x.to_ll_r; else_ll.concat(ll)}
+
+        r_if = newreg
+        ll = []
+        ll.concat cond_ll
+        ll << "  br i1 #{cond_r}, label %Then#{i}, label %Else#{i}"
+
+        ll << "Then#{i}:"
+        ll.concat then_ll
+        ll << "  br label %ThenEnd#{i}"
+        ll << "ThenEnd#{i}:"
+        ll << "  br label %EndIf#{i}"
+
+        ll << "Else#{i}:"
+        ll.concat else_ll
+        ll << "  br label %ElseEnd#{i}"
+        ll << "ElseEnd#{i}:"
+        ll << "  br label %EndIf#{i}"
+
+        ll << "EndIf#{i}:"
+        unless @else_stmts.empty?
+          ll << "  #{r_if} = phi #{t} [#{then_r}, %ThenEnd#{i}], "+
+                                     "[#{else_r}, %ElseEnd#{i}]"
+        end
+        return ll, r_if
       end
     end
 
