@@ -232,7 +232,7 @@ def parse(str)
     case
     when s.scan(/\n/)
       @q << ['\n', :NL]
-    when s.scan(/\s+/)
+    when s.scan(/[ \t]+/)
       # skip whitespace
     when s.scan(%r{#[^\n]*})
       # skip comment
