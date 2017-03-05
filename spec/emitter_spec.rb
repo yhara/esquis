@@ -168,7 +168,7 @@ describe "ll emitter:" do
     end
   end
 
-  describe "if stmt" do
+  describe "if expr" do
     it "true case" do
       ll = to_ll(<<~EOD)
         extern i32 putchar(i32)
@@ -181,11 +181,17 @@ describe "ll emitter:" do
         define i32 @main() {
           call void @GC_init()
           %reg1 = fcmp olt double 1.0, 2.0
-          br i1 %reg1, label %Then1, label %EndIf1
+          br i1 %reg1, label %Then1, label %Else1
         Then1:
           %reg2 = fptosi double 65.0 to i32
           %reg3 = call i32 @putchar(i32 %reg2)
           %reg4 = sitofp i32 %reg3 to double
+          br label %ThenEnd1
+        ThenEnd1:
+          br label %EndIf1
+        Else1:
+          br label %ElseEnd1
+        ElseEnd1:
           br label %EndIf1
         EndIf1:
           ret i32 0

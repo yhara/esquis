@@ -14,13 +14,13 @@ end
 
 def mandleconverger(real: Float, imag: Float, iters: Float,
                     creal: Float, cimag: Float) -> Float
-  if iters > 255 || (real*real + imag*imag > 4)
-    return iters
-  else
-    return mandleconverger(real*real - imag*imag + creal,
+  return if iters > 255 || (real*real + imag*imag > 4)
+           iters
+         else
+           mandleconverger(real*real - imag*imag + creal,
                            2*real*imag + cimag,
                            iters+1, creal, cimag)
-  end
+         end
 end
 
 def mandleconverge(real: Float, imag: Float) -> Float

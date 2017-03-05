@@ -56,8 +56,10 @@ module Esquis
       # Return LLVM bitcode as [String]
       # @param prog [Program]
       # @param env [Set]
-      # def to_ll
-      # end
+      def to_ll
+        ll, r = to_ll_r
+        return ll
+      end
 
       # Return LLVM bitcode as [String] and the name of the register
       # which contains the value of this node
@@ -345,9 +347,8 @@ module Esquis
           ll.concat body_stmts.flat_map(&:to_ll)
         else
           *stmts, last_stmt = body_stmts
-          raise "unexpected" unless last_stmt.is_a?(ExprStmt)
           ll.concat stmts.flat_map(&:to_ll)
-          last_ll, last_r = last_stmt.expr.to_ll_r
+          last_ll, last_r = last_stmt.to_ll_r
           ll.concat last_ll
           ll << "  ret #{ret_t} #{last_r}"
         end
@@ -486,7 +487,6 @@ module Esquis
 
       def add_type!(env)
         raise if @ty
-        @ty = NoType
 
         newenv = cond_expr.add_type!(env)
         cond_ty = cond_expr.ty
@@ -496,29 +496,48 @@ module Esquis
 
         then_stmts.each{|x| newenv = x.add_type!(newenv)}
         else_stmts.each{|x| newenv = x.add_type!(newenv)}
+        if else_stmts.any? && then_stmts.any?
+          if then_stmts.last.ty != else_stmts.last.ty
+            raise TypeMismatch, "then clause is #{then_stmts.last.ty} but"+
+              " else clause is #{else_stmts.last.ty}"
+          end
+        end
+        @ty = then_stmts.last.ty
         return newenv
       end
 
-      def to_ll
+      def to_ll_r
         i = newif
+        t = @ty.llvm_type
         cond_ll, cond_r = @cond_expr.to_ll_r
-        then_ll = @then_stmts.flat_map{|x| x.to_ll}
-        else_ll = @else_stmts.flat_map{|x| x.to_ll}
+        then_ll, then_r = [], nil
+        else_ll, else_r = [], nil
+        @then_stmts.each{|x| ll, then_r = x.to_ll_r; then_ll.concat(ll)}
+        @else_stmts.each{|x| ll, else_r = x.to_ll_r; else_ll.concat(ll)}
 
+        r_if = newreg
         ll = []
         ll.concat cond_ll
-        endif = (@else_stmts.any? ? "%Else#{i}" : "%EndIf#{i}")
-        ll << "  br i1 #{cond_r}, label %Then#{i}, label #{endif}"
+        ll << "  br i1 #{cond_r}, label %Then#{i}, label %Else#{i}"
+
         ll << "Then#{i}:"
         ll.concat then_ll
+        ll << "  br label %ThenEnd#{i}"
+        ll << "ThenEnd#{i}:"
         ll << "  br label %EndIf#{i}"
-        if @else_stmts.any?
-          ll << "Else#{i}:"
-          ll.concat else_ll  # fallthrough
-          ll << "  br label %EndIf#{i}"
-        end
+
+        ll << "Else#{i}:"
+        ll.concat else_ll
+        ll << "  br label %ElseEnd#{i}"
+        ll << "ElseEnd#{i}:"
+        ll << "  br label %EndIf#{i}"
+
         ll << "EndIf#{i}:"
-        return ll
+        unless @else_stmts.empty?
+          ll << "  #{r_if} = phi #{t} [#{then_r}, %ThenEnd#{i}], "+
+                                     "[#{else_r}, %ElseEnd#{i}]"
+        end
+        return ll, r_if
       end
     end
 
@@ -538,7 +557,7 @@ module Esquis
         return newenv
       end
 
-      def to_ll
+      def to_ll_r
         begin_ll, begin_r = begin_expr.to_ll_r
         end_ll, end_r = end_expr.to_ll_r
         step_ll, step_r = step_expr.to_ll_r
@@ -567,7 +586,7 @@ module Esquis
         ll << "  br label %Loop#{i}"
 
         ll << "EndFor#{i}:"
-        return ll
+        return ll, :novalue
       end
     end
 
@@ -580,33 +599,13 @@ module Esquis
         return expr.add_type!(env)
       end
 
-      def to_ll
+      def to_ll_r
         expr_ll, expr_r = expr.to_ll_r
 
         ll = []
         ll.concat expr_ll
         ll << "  ret #{expr.ty.llvm_type} #{expr_r}"
-        return ll
-      end
-    end
-
-    class ExprStmt < Node
-      props :expr
-
-      def add_type!(env)
-        raise if @ty
-        newenv = expr.add_type!(env)
-        @ty = expr.ty
-        newenv
-      end
-
-      def to_ll
-        ll, r = @expr.to_ll_r
-        return ll
-      end
-
-      def inspect
-        "#<ExprStmt #{@expr.inspect}>"
+        return ll, :novalue
       end
     end
 
@@ -700,7 +699,7 @@ module Esquis
         ll = []
         args_and_types = []
         param_tys = funmeth.ty.param_tys
-        param_tys.unshift(self_ty) if self_ty
+        param_tys = [self_ty] + param_tys if self_ty
         arg_exprs.map{|x| x.to_ll_r}.each.with_index do |(arg_ll, arg_r), i|
           type = param_tys[i]
           ll.concat(arg_ll)

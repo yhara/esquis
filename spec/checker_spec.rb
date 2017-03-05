@@ -171,6 +171,30 @@ describe "Esquis" do
       end
     end
 
+    context "if" do
+      it "should check both branch has the same type" do
+        expect {
+          to_ll(<<~EOD)
+            if 1; 2; else; 1 == 1; end
+          EOD
+        }.to raise_error(Esquis::Ast::TypeMismatch)
+      end
+
+      it "should allow return (without else)"
+#        expect {
+#          to_ll(<<~EOD)
+#            def foo() -> Float
+#              if 1 == 2
+#                return 3
+#              end
+#            end
+#          EOD
+#        }.to raise_error(Esquis::Ast::TypeMismatch)
+#      end
+
+      it "should allow return (with else)"
+    end
+
     context "ivar" do
       it "should check type of ivar assignment"
 #        expect {

@@ -108,14 +108,12 @@ rule
     <%= repeat0 'param_type', sep: ["_nl", "','", "_nl"] %>
 
     statement:
-        if_stmt
-      | for_stmt
+        for_stmt
       | return_stmt
       | expression
-        { Ast::ExprStmt.new(val[0]) }
     <%= repeat0 'statement', sep: ['sep'], suffix: 'sep' %>
 
-    if_stmt:
+    if_expr:
         'if' expression sep opt_statements 'end'
         { Ast::If.new(val[1], val[3], []) }
       | 'if' expression sep opt_statements elsif_clause
@@ -140,7 +138,8 @@ rule
         { Ast::Return.new(val[1]) }
 
     expression:
-        method_call
+        if_expr
+      | method_call
       | fcall
       | assign_lvar
       | assign_ivar

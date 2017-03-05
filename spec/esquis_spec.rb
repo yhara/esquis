@@ -125,6 +125,24 @@ describe Esquis do
       expect(run(src)).to eq("A")
     end
 
+    describe 'if' do
+      it 'has value' do
+        src = <<-EOD
+          extern i32 putchar(i32)
+          putchar(if 1 == 2; 65; else 66; end)
+        EOD
+        expect(run(src)).to eq("B")
+      end
+
+      it 'one-sided' do
+        src = <<-EOD
+          extern i32 putchar(i32)
+          if 1 == 1; putchar(65); end
+        EOD
+        expect(run(src)).to eq("A")
+      end
+    end
+
     it 'for' do
       src = <<-EOD
         extern i32 putchar(i32)
