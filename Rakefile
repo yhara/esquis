@@ -6,7 +6,7 @@ end
 
 file 'lib/esquis/parser.rb' => 'lib/esquis/parser.ry' do
   cmd = "racc -o lib/esquis/parser.rb lib/esquis/parser.ry"
-  cmd.sub!("racc", "racc --debug") if ENV["DEBUG"]
+  cmd.sub!("racc", "racc --debug") if ENV["DEBUG"] == "1"
   sh cmd
 end
 
