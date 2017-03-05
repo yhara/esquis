@@ -31,6 +31,20 @@ describe "Parser" do
     end
   end
 
+  context 'method definition' do
+    it 'allow names with `!`' do
+      expect {
+        parse("class A; def foo!() -> Void; end; end; A.new.foo!")
+      }.not_to raise_error
+    end
+
+    it 'allow names with `!`' do
+      expect {
+        parse("class A; def foo?() -> Void; end; end; A.new.foo?")
+      }.not_to raise_error
+    end
+  end
+
   it "should allow trailing space on a line" do
     expect {
       parse("class A \nend\n1+1")

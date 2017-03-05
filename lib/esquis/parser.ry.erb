@@ -30,7 +30,7 @@
 %>
 class Esquis::Parser
   options no_result_var
-  token IDENT IVAR FLOAT INTEGER
+  token IDENT IDENT_M IVAR FLOAT INTEGER
 
   prechigh
     right UMINUS
@@ -73,7 +73,7 @@ rule
 
     defmethod:
         definitialize
-      | 'def' IDENT '(' opt_params ')' _nl '->' _nl IDENT sep
+      | 'def' method_name '(' opt_params ')' _nl '->' _nl IDENT sep
            opt_statements
         'end'
         { Ast::DefMethod.new(val[1], val[3], val[8], val[10]) }
@@ -92,7 +92,7 @@ rule
     <%= repeat0 'iparam', sep: ["_nl", "','", "_nl"] %>
 
     defun:
-        'def' IDENT '(' opt_params ')' _nl '->' _nl IDENT sep
+        'def' method_name '(' opt_params ')' _nl '->' _nl IDENT sep
            opt_statements
         'end'
         { Ast::Defun.new(val[1], val[3], val[8], val[10]) }
@@ -165,13 +165,13 @@ rule
         { val[2] }
 
     method_call:
-        expression '.' IDENT '(' opt_args ')'
+        expression '.' method_name '(' opt_args ')'
         { Ast::MethodCall.new(val[0], val[2], val[4]) }
-      | expression '.' IDENT
+      | expression '.' method_name
         { Ast::MethodCall.new(val[0], val[2], []) }
 
     fcall:
-        IDENT '(' opt_args ')'
+        method_name '(' opt_args ')'
         { Ast::FunCall.new(val[0], val[2]) }
 
     assign_lvar:
@@ -197,6 +197,10 @@ rule
         { Ast::Literal.new(val[0]) }
       | INTEGER
         { Ast::Literal.new(val[0]) }
+
+    method_name:
+        IDENT
+      | IDENT_M
 
     nl:
         '\n'
@@ -251,6 +255,8 @@ def parse(str)
       @q << [m, :KEYWORD]
     when m = s.scan(/@[\w_]+/)
       @q << [:IVAR, m]
+    when m = s.scan(/[\w_]+[!?]/)  # names allowed for methods only
+      @q << [:IDENT_M, m]
     when m = s.scan(/[\w_]+/)
       @q << [:IDENT, m]
     else
