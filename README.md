@@ -24,3 +24,7 @@ This is a memo of 'how esquis behaves now', not 'how esquis should behave'.
 
 - lvar
   - It is not allowed to reassign to local variable
+- stdlib
+  - putd(n: Float) -> Void : print n as decimal number(%d)
+  - putf(n: Float) -> Void : print n as flonum (%f)
+
