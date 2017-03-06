@@ -177,14 +177,22 @@ rule
         { val[2] }
 
     method_call:
-        expression '.' method_name '(' opt_args ')'
-        { Ast::MethodCall.new(val[0], val[2], val[4]) }
-      | expression '.' method_name
-        { Ast::MethodCall.new(val[0], val[2], []) }
+        expression '.' method_name opt_arglist
+        { Ast::MethodCall.new(val[0], val[2], val[3]) }
 
     fcall:
-        method_name '(' opt_args ')'
-        { Ast::FunCall.new(val[0], val[2]) }
+        method_name opt_arglist
+        { Ast::FunCall.new(val[0], val[1]) }
+
+    opt_arglist:
+        /* NONE */
+        { [] }
+      | '(' opt_args ')'
+        { val[1] }
+
+    arg:
+        expression
+    <%= repeat0 'arg', sep: ["_nl", "','", "_nl"] %>
 
     assign_lvar:
         IDENT '=' expression
@@ -193,10 +201,6 @@ rule
     assign_ivar:
         IVAR '=' expression
         { Ast::AssignIvar.new(val[0], val[2]) }
-
-    arg:
-        expression
-    <%= repeat0 'arg', sep: ["_nl", "','", "_nl"] %>
 
     varref:
         IDENT
