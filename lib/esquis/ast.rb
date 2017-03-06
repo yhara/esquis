@@ -325,8 +325,7 @@ module Esquis
 
         last_ty = (body_stmts.empty? ? TyRaw["Void"] : body_stmts.last.ty)
         if name != "new" && ret_type_name != "Void" && !manual_return?
-          if last_ty != @ty.ret_ty &&
-             last_ty.llvm_type != @ty.ret_ty.llvm_type
+          unless Type.compatible?(last_ty, @ty.ret_ty)
             raise TypeMismatch, "#{name} is decalred to return #{ret_type_name}"+
               " but returns #{last_ty.inspect}"
           end
@@ -568,7 +567,7 @@ module Esquis
         then_stmts.each{|x| newenv = x.add_type!(newenv)}
         else_stmts.each{|x| newenv = x.add_type!(newenv)}
         if else_stmts.any? && then_stmts.any?
-          if then_stmts.last.ty != else_stmts.last.ty
+          unless Type.compatible?(then_stmts.last.ty, else_stmts.last.ty)
             raise TypeMismatch, "then clause is #{then_stmts.last.ty} but"+
               " else clause is #{else_stmts.last.ty}"
           end
@@ -759,7 +758,7 @@ module Esquis
             "#{@method.full_name} takes #{@method.arity} args but got #{args.length} args"
         end
         @method.params.zip(args) do |param, arg|
-          if param.ty != arg.ty
+          unless Type.compatible?(param.ty, arg.ty)
             raise TypeMismatch,
               "parameter #{param.name} of #{@method.full_name} "+
               "is #{param.ty} but got #{arg.ty.inspect}"
