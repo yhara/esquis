@@ -65,8 +65,23 @@ describe Esquis do
     end
 
     it '%' do
-      src = "extern i32 putchar(i32); putd(12.0 % 5)"
-      expect(run(src)).to eq("2")
+      src = "putf(1.1 % 2)"
+      expect(run(src)).to eq("1.100000")
+      src = "putf(2.1 % 2)"
+      expect(run(src)).to eq("0.100000")
+      src = "putf(-1.1 % 2)"
+      expect(run(src)).to eq("0.900000")
+      src = "putf(-2.1 % 2)"
+      expect(run(src)).to eq("1.900000")
+
+      src = "putf(1.1 % -2)"
+      expect(run(src)).to eq("-0.900000")
+      src = "putf(2.1 % -2)"
+      expect(run(src)).to eq("-1.900000")
+      src = "putf(-1.1 % -2)"
+      expect(run(src)).to eq("-1.100000")
+      src = "putf(-2.1 % -2)"
+      expect(run(src)).to eq("-0.100000")
     end
 
     it '==' do

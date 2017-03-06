@@ -616,7 +616,22 @@ module Esquis
       "-" => [TyRaw["Float"], "fsub double"],
       "*" => [TyRaw["Float"], "fmul double"],
       "/" => [TyRaw["Float"], "fdiv double"],
-      "%" => [TyRaw["Float"], "frem double"],
+      "%" => [TyRaw["Float"], ->(r1, r2, r3, r4, r5, rtmp0, rtmp1, rtmp2, i){
+        [
+          "  #{rtmp0} = fmul double #{r1}, #{r2}",
+          "  #{rtmp1} = fcmp olt double #{rtmp0}, 0.0",
+          "  br i1 #{rtmp1}, label %mod#{i}a, label %mod#{i}b",
+          "mod#{i}a:",
+          "  #{rtmp2} = frem double #{r1}, #{r2}",
+          "  #{r4} = fadd double #{r2}, #{rtmp2}",
+          "  br label %mod#{i}c",
+          "mod#{i}b:",
+          "  #{r5} = frem double #{r1}, #{r2}",
+          "  br label %mod#{i}c",
+          "mod#{i}c:",
+          "  #{r3} = phi double [#{r4}, %mod#{i}a], [#{r5}, %mod#{i}b]",
+        ]
+      }],
 
       "==" => [TyRaw["Bool"], "fcmp oeq double"],
       ">"  => [TyRaw["Bool"], "fcmp ogt double"],
@@ -647,7 +662,11 @@ module Esquis
 
         ll = ll1 + ll2
         r3 = newreg
-        ll << "  #{r3} = #{ope} #{r1}, #{r2}"
+        if ope.is_a?(Proc)
+          ll.concat ope.call(r1, r2, r3, newreg, newreg, newreg, newreg, newreg, newif)
+        else
+          ll << "  #{r3} = #{ope} #{r1}, #{r2}"
+        end
         return ll, r3
       end
     end
