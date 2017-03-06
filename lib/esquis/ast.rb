@@ -823,7 +823,6 @@ module Esquis
       def to_ll_r
         it = @ty.llvm_type
         inst = %Q{"#{@cls.name}"}
-        r = "%#{varname}"
         ll_expr, r_expr = *expr.to_ll_r
 
         r_addr = newreg
@@ -832,7 +831,7 @@ module Esquis
           "  #{r_addr} = getelementptr inbounds %#{inst}, %#{inst}* %self, i32 0, i32 #{@ivar.idx}",
           "  store #{it} #{r_expr}, #{it}* #{r_addr}",
         ]
-        return ll, r
+        return ll, r_expr
       end
     end
 
