@@ -229,15 +229,18 @@ module Esquis
         @new = DefMethod.new("new", @initialize.params.map(&:dup), @name, [])
         @class_methods = {"new" => @new}
 
-        getters = @ivars.map{|ivar|
+        accessors = @ivars.flat_map{|ivar|
           n = ivar.name.sub("@", "")
-          [n,
-           DefMethod.new(n, [], ivar.type_name, 
-             [Return.new(VarRef.new(ivar.name))])
-          ]
+          s = "#{n}="
+          getter = DefMethod.new(n, [], ivar.type_name, 
+            [Return.new(VarRef.new(ivar.name))])
+          param = Param.new("value", ivar.type_name)
+          setter = DefMethod.new(s, [param], ivar.type_name,
+            [Return.new(AssignIvar.new(ivar.name, VarRef.new("value")))])
+          [[n, getter], [s, setter]]
         }.to_h
         @instance_methods = 
-          getters.merge(defmethods.map{|x| [x.name, x]}.to_h)
+          accessors.merge(defmethods.map{|x| [x.name, x]}.to_h)
       end
       attr_reader :instance_ty, :ivars, :class_methods, :instance_methods
 

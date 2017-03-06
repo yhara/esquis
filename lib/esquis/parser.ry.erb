@@ -179,6 +179,8 @@ rule
     method_call:
         expression '.' method_name opt_arglist
         { Ast::MethodCall.new(val[0], val[2], val[3]) }
+      | expression '.' IDENT '=' expression
+        { Ast::MethodCall.new(val[0], val[2] + '=', [val[4]]) }
 
     fcall:
         method_name opt_arglist

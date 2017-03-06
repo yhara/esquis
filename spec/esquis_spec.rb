@@ -196,7 +196,7 @@ describe Esquis do
         expect(run(src)).to eq("B")
       end
 
-      it 'reference with accessor' do
+      it 'reference with getter' do
         src = <<~EOD
           extern i32 putchar(i32)
           class A
@@ -205,6 +205,19 @@ describe Esquis do
           putchar(A.new(65).x)
         EOD
         expect(run(src)).to eq("A")
+      end
+
+      it 'update with setter' do
+        src = <<~EOD
+          extern i32 putchar(i32)
+          class A
+            def initialize(@x: Float); end
+          end
+          a = A.new(65)
+          a.x = 66
+          putchar(a.x)
+        EOD
+        expect(run(src)).to eq("B")
       end
     end
   end
