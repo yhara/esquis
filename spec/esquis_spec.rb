@@ -64,6 +64,11 @@ describe Esquis do
       expect(run(src)).to eq("A")
     end
 
+    it '%' do
+      src = "extern i32 putchar(i32); putd(12.0 % 5)"
+      expect(run(src)).to eq("2")
+    end
+
     it '==' do
       src = "extern i32 putchar(i32); if true; putchar(65); end"
       expect(run(src)).to eq("A")
