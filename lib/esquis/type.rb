@@ -37,6 +37,11 @@ module Esquis
         @llvm_type || %Q{%"#{name}"*}
       end
 
+      attr_writer :llvm_zero
+      def llvm_zero
+        @llvm_zero || "null"
+      end
+
       def inspect
         "#<TyRaw #{name}>"
       end
@@ -44,10 +49,15 @@ module Esquis
     end
 
     TyRaw["Float"].llvm_type = "double"
+    TyRaw["Float"].llvm_zero = "0.0"
     TyRaw["double"].llvm_type = "double"
+    TyRaw["double"].llvm_zero = "0.0"
     TyRaw["Int"].llvm_type = "i32"
+    TyRaw["Int"].llvm_zero = "0"
     TyRaw["i32"].llvm_type = "i32"
+    TyRaw["Int"].llvm_zero = "0"
     TyRaw["Bool"].llvm_type = "i1"
+    TyRaw["Bool"].llvm_zero = "0"
     TyRaw["Void"].llvm_type = "void"
 
     class TyMethod < Base

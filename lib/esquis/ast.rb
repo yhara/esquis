@@ -135,16 +135,40 @@ module Esquis
           end
         end
 
-        defs.each{|x| x.add_type!(newenv) }
+        defs.each{|x| newenv = x.add_type!(newenv) }
         main.add_type!(newenv)
         return nil
       end
 
       def to_ll
+        def_constants = defs.grep(AssignConst)
+        constants = def_constants + gather_constants(main.stmts)
+        declare_consts = constants.map{|c|
+          %Q{@"#{c.varname}" = internal global #{c.ty.llvm_type} #{c.ty.llvm_zero}}
+        }
+        init_def_consts = def_constants.flat_map(&:to_ll)
+
         [
-          *defs.flat_map{|x| x.to_ll},
-          *main.to_ll
+          *declare_consts,
+          *defs.reject{|x| x.is_a?(AssignConst)}.flat_map{|x| x.to_ll},
+          *main.to_ll(init_def_consts),
         ]
+      end
+
+      def gather_constants(stmts)
+        return stmts.flat_map{|stmt|
+          case stmt
+          when If
+            gather_constants(stmt.then_stmts) +
+            gather_constants(stmt.else_stmts)
+          when For
+            gather_constants(stmt.body_stmts)
+          when AssignConst
+            [stmt]
+          else
+            []
+          end
+        }
       end
 
       def check_duplicated_defun
@@ -178,12 +202,13 @@ module Esquis
         @ty = NoType
         newenv = env
         stmts.each{|x| newenv = x.add_type!(newenv)}
-        return nil
+        return env
       end
 
-      def to_ll
+      def to_ll(init_def_consts)
         [
           "define i32 @main() {",
+          *init_def_consts,
           "  call void @GC_init()",
           *stmts.flat_map{|x| x.to_ll},
           "  ret i32 0",
@@ -267,7 +292,7 @@ module Esquis
 
         newenv = env.set_selfcls(self)
         @instance_methods.each_value{|x| x.add_type!(newenv, self)}
-        return nil
+        return env  # not `newenv` because we don't want to keep `self` set 
       end
 
       def to_ll
@@ -331,7 +356,7 @@ module Esquis
           end
         end
 
-        return nil
+        return env
       end
 
       def to_ll(funname: name, self_param: nil, init_ll: nil)
@@ -387,7 +412,7 @@ module Esquis
         @cls = cls
         newenv = env.add_local_vars("self" => @cls.instance_ty)
         super(newenv)
-        return nil
+        return env
       end
 
       def full_name
@@ -469,7 +494,7 @@ module Esquis
         raise if @ty
         params.each{|x| x.add_type!(env)}
         @ty = TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
-        return nil
+        return env
       end
 
       def to_ll
@@ -856,6 +881,28 @@ module Esquis
       end
     end
 
+    class AssignConst < Node
+      props :varname, :expr
+
+      def add_type!(env)
+        raise if @ty
+
+        expr.add_type!(env)
+        @ty = expr.ty
+
+        return env.add_constants(varname => @ty)
+      end
+
+      def to_ll_r
+        const = %Q{@"#{varname}"}
+        ll_expr, r_expr = *expr.to_ll_r
+        ll = [
+          "  store #{@ty.llvm_type} #{r_expr}, #{@ty.llvm_type}* #{const}",
+        ]
+        return ll, r_expr
+      end
+    end
+
     class VarRef < Node
       props :name
 
@@ -867,6 +914,8 @@ module Esquis
               elsif (@ivar = env.find_instance_var(name))
                 @selfcls = env.selfcls
                 @ivar.ty
+              elsif (ty = env.find_constant(name))
+                ty
               elsif (cls = env.find_class(name))
                 TyRaw["Class"]
               else
@@ -876,7 +925,8 @@ module Esquis
       end
 
       def to_ll_r
-        if name[0] == "@"
+        case name[0]
+        when "@"
           r1, r2 = newreg, newreg
           t = %Q{"#{@selfcls.full_name}"}
           ll = [
@@ -884,6 +934,13 @@ module Esquis
             "  #{r2} = load #{@ty.llvm_type}, #{@ty.llvm_type}* #{r1}",
           ]
           return ll, r2
+        when /[A-Z]/
+          r = newreg
+          const = %Q{@"#{name}"}
+          ll = [
+            "  #{r} = load #{@ty.llvm_type}, #{@ty.llvm_type}* #{const}",
+          ]
+          return ll, r
         else
           return [], "%#{name}"
         end
@@ -933,9 +990,9 @@ module Esquis
 
     class Env
       def initialize(toplevel_funcs = {}, local_vars = {},
-                     classes = {}, selfcls = nil)
-        @toplevel_funcs, @local_vars, @classes, @selfcls =
-          toplevel_funcs, local_vars, classes, selfcls
+                     constants = {}, classes = {}, selfcls = nil)
+        @toplevel_funcs, @local_vars, @constants, @classes, @selfcls =
+          toplevel_funcs, local_vars, constants, classes, selfcls
       end
 
       def selfcls
@@ -943,11 +1000,11 @@ module Esquis
       end
 
       def merge(toplevel_funcs: @toplevel_funcs, local_vars: @local_vars,
-                classes: @classes, selfcls: @selfcls)
-        return Env.new(toplevel_funcs, local_vars, classes, selfcls)
+                constants: @constants, classes: @classes, selfcls: @selfcls)
+        return Env.new(toplevel_funcs, local_vars, constants, classes, selfcls)
       end
 
-      # @param lvars [{String => Ty}]
+      # @param lvars [{String => Type}]
       def add_local_vars(lvars)
         return merge(local_vars: @local_vars.merge(lvars))
       end
@@ -964,6 +1021,18 @@ module Esquis
       # Find ivar (Return nil outside a class)
       def find_instance_var(name)
         return @selfcls && @selfcls.ivars.find{|x| x.name == name}
+      end
+
+      # @param consts [{String => Type}]
+      def add_constants(consts)
+        if (dups = consts.keys & @constants.keys).any?
+          raise "constant #{dups.inspect} already defined"
+        end
+        return merge(constants: @constants.merge(consts))
+      end
+
+      def find_constant(name)
+        return @constants[name]
       end
 
       # @param name [String]

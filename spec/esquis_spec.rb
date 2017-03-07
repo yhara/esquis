@@ -235,5 +235,24 @@ describe Esquis do
         expect(run(src)).to eq("B")
       end
     end
+
+    context 'constant' do
+      it 'in definitions' do
+        src = <<~EOD
+          X = 1
+          class A; end
+          putd(X)
+        EOD
+        expect(run(src)).to eq("1")
+      end
+
+      it 'in topstmts' do
+        src = <<~EOD
+          X = 1
+          putd(X)
+        EOD
+        expect(run(src)).to eq("1")
+      end
+    end
   end
 end
