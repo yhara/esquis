@@ -196,16 +196,16 @@ describe "Esquis" do
     end
 
     context "ivar" do
-      it "should check type of ivar assignment"
-#        expect {
-#          to_ll(<<~EOD)
-#            class A
-#              def initialize(@x: Bool); end
-#              def foo(); @x = 1; end
-#            end
-#          EOD
-#        }.to raise_error(Esquis::Ast::TypeMismatch)
-#      end
+      it "should check type of ivar assignment" do
+        expect {
+          to_ll(<<~EOD)
+            class A
+              def initialize(@x: Bool); end
+              def foo() -> Void; @x = 1; end
+            end
+          EOD
+        }.to raise_error(Esquis::Ast::TypeMismatch)
+      end
     end
 
     it "should check condition of if-stmt is Bool" do

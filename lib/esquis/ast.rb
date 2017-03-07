@@ -905,7 +905,10 @@ module Esquis
         expr.add_type!(env)
         @cls = env.selfcls
         @ivar = env.find_instance_var(varname)
-        # TODO: check type of expr
+        if !Type.compatible?(@ivar.ty, expr.ty)
+          raise TypeMismatch, "instance variable #{@ivar.name} is #{@ivar.ty}"+
+            " but got #{expr.ty}"
+        end
         @ty = expr.ty
         return env
       end
