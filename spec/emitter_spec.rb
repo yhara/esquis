@@ -33,7 +33,7 @@ describe "ll emitter:" do
         define i32 @main() {
           call void @GC_init()
           %reg1 = fptosi double 65.0 to i32
-          %reg2 = call i32 @putchar(i32 %reg1)
+          %reg2 = call i32 @"putchar"(i32 %reg1)
           %reg3 = sitofp i32 %reg2 to double
           ret i32 0
         }
@@ -156,12 +156,12 @@ describe "ll emitter:" do
         foo(123, 456)
       EOD
       expect(ll).to eq(<<~EOD)
-        define double @foo(double %x, double %y) {
+        define double @"foo"(double %x, double %y) {
           ret double %x
         }
         define i32 @main() {
           call void @GC_init()
-          %reg1 = call double @foo(double 123.0, double 456.0)
+          %reg1 = call double @"foo"(double 123.0, double 456.0)
           ret i32 0
         }
       EOD
@@ -184,7 +184,7 @@ describe "ll emitter:" do
           br i1 %reg1, label %Then1, label %Else1
         Then1:
           %reg2 = fptosi double 65.0 to i32
-          %reg3 = call i32 @putchar(i32 %reg2)
+          %reg3 = call i32 @"putchar"(i32 %reg2)
           %reg4 = sitofp i32 %reg3 to double
           br label %ThenEnd1
         ThenEnd1:
@@ -221,7 +221,7 @@ describe "ll emitter:" do
           br i1 %forc1, label %EndFor1, label %ForBody1
         ForBody1:
           %reg1 = fptosi double %x to i32
-          %reg2 = call i32 @putchar(i32 %reg1)
+          %reg2 = call i32 @"putchar"(i32 %reg1)
           %reg3 = sitofp i32 %reg2 to double
           br label %ForInc1
         ForInc1:
@@ -247,7 +247,7 @@ describe "ll emitter:" do
             call void @GC_init()
             %reg1 = fadd double 60.0, 5.0
             %reg2 = fptosi double %reg1 to i32
-            %reg3 = call i32 @putchar(i32 %reg2)
+            %reg3 = call i32 @"putchar"(i32 %reg2)
             %reg4 = sitofp i32 %reg3 to double
             ret i32 0
           }
@@ -264,13 +264,13 @@ describe "ll emitter:" do
           foo(3)
         EOD
         expect(ll).to eq(<<~EOD)
-          define double @foo(double %x) {
+          define double @"foo"(double %x) {
             %reg1 = fsub double 0.0, %x
             ret double %reg1
           }
           define i32 @main() {
             call void @GC_init()
-            %reg2 = call double @foo(double 3.0)
+            %reg2 = call double @"foo"(double 3.0)
             ret i32 0
           }
         EOD

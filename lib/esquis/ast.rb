@@ -359,7 +359,7 @@ module Esquis
         return env
       end
 
-      def to_ll(funname: name, self_param: nil, init_ll: nil)
+      def to_ll(funname: %Q{"#{name}"}, self_param: nil, init_ll: nil)
         param_list = params.flat_map(&:to_ll)
         param_list.unshift(self_param) if self_param
 
@@ -741,7 +741,7 @@ module Esquis
         env
       end
 
-      def to_ll_r(funname: name, funmeth: @func, self_ty: nil, arg_exprs: @args)
+      def to_ll_r(funname: %Q{"#{name}"}, funmeth: @func, self_ty: nil, arg_exprs: @args)
         ll = []
         args_and_types = []
         param_tys = funmeth.ty.param_tys

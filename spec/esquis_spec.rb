@@ -35,6 +35,16 @@ describe Esquis do
       expect(run(src)).to eq("A")
     end
 
+    describe 'method' do
+      it 'with !' do
+        src = <<~EOD
+          class A; def foo! -> Void; putd(1); end; end
+          A.new.foo!
+        EOD
+        expect(run(src)).to eq("1")
+      end
+    end
+
     it 'defun' do
       src = <<~EOD
         extern i32 putchar(i32)
