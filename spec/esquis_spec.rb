@@ -218,10 +218,11 @@ describe Esquis do
       it 'reassign' do
         src = <<-EOD
           var a = 1
+          putd(a)
           a = 2
           putd(a)
         EOD
-        expect(run(src)).to eq("2")
+        expect(run(src)).to eq("12")
       end
     end
 

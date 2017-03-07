@@ -887,7 +887,9 @@ module Esquis
         else
           @lvar.reg = %Q{%"#{@lvar.name}"}
           if isvar
-            ll << "  #{@lvar.reg} = alloca #{@expr_ty.llvm_type}"
+            t = @expr_ty.llvm_type
+            ll << "  #{@lvar.reg} = alloca #{t}"
+            ll << "  store #{t} #{r_expr}, #{t}* #{@lvar.reg}"
             return ll, :novalue
           else
             t = @ty.llvm_type
