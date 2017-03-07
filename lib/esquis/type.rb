@@ -14,7 +14,8 @@ module Esquis
     end
 
     def self.compatible?(param_ty, arg_ty)
-      param_ty.llvm_type == arg_ty.llvm_type
+      return param_ty == arg_ty ||
+             param_ty.llvm_type == arg_ty.llvm_type
     end
 
     class Base

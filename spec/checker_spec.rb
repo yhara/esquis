@@ -180,19 +180,31 @@ describe "Esquis" do
         }.to raise_error(Esquis::Ast::TypeMismatch)
       end
 
-      it "should allow return (without else)"
-#        expect {
-#          to_ll(<<~EOD)
-#            def foo() -> Float
-#              if 1 == 2
-#                return 3
-#              end
-#            end
-#          EOD
-#        }.to raise_error(Esquis::Ast::TypeMismatch)
-#      end
+      it "should allow return (without else)" do
+        expect {
+          to_ll(<<~EOD)
+            def foo() -> Float
+              if 1 == 2
+                return 3
+              end
+            end
+          EOD
+        }.not_to raise_error
+      end
 
-      it "should allow return (with else)"
+      it "should allow return (with else)" do
+        expect {
+          to_ll(<<~EOD)
+            def foo() -> Float
+              if 1 == 2
+                return 3
+              else
+                return 4
+              end
+            end
+          EOD
+        }.not_to raise_error
+      end
     end
 
     context "ivar" do

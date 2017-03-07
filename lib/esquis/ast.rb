@@ -614,7 +614,6 @@ module Esquis
 
       def to_ll_r
         i = newif
-        t = @ty.llvm_type
         cond_ll, cond_r = @cond_expr.to_ll_r
         then_ll, then_r = [], nil
         else_ll, else_r = [], nil
@@ -639,7 +638,8 @@ module Esquis
         ll << "  br label %EndIf#{i}"
 
         ll << "EndIf#{i}:"
-        if @else_stmts.any? && @ty.llvm_type != "void"
+        if @else_stmts.any? && @ty != TyRaw["Void"] && @ty != NoType
+          t = @ty.llvm_type
           ll << "  #{r_if} = phi #{t} [#{then_r}, %ThenEnd#{i}], "+
                                      "[#{else_r}, %ElseEnd#{i}]"
         end
