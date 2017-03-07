@@ -29,6 +29,12 @@ describe "Parser" do
         parse("")
       }.not_to raise_error
     end
+
+    it 'starts with comment line' do
+      expect {
+        parse("# comment.\n1 + 1")
+      }.not_to raise_error
+    end
   end
 
   context 'method definition' do
