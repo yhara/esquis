@@ -1,2 +1,5 @@
 /lib/esquis/parser.rb
 /lib/esquis/parser.ry
+/examples/*.out
+/examples/*.out.dSYM
+/examples/*.s
