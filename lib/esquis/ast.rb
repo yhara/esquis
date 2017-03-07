@@ -217,8 +217,8 @@ module Esquis
       def to_ll(init_def_consts)
         [
           "define i32 @main() {",
-          *init_def_consts,
           "  call void @GC_init()",
+          *init_def_consts,
           *stmts.flat_map{|x| x.to_ll},
           "  ret i32 0",
           "}",
@@ -941,6 +941,7 @@ module Esquis
         const = %Q{@"#{varname}"}
         ll_expr, r_expr = *expr.to_ll_r
         ll = [
+          *ll_expr,
           "  store #{@ty.llvm_type} #{r_expr}, #{@ty.llvm_type}* #{const}",
         ]
         return ll, r_expr

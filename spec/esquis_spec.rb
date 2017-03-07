@@ -267,8 +267,9 @@ describe Esquis do
 
       it 'in topstmts' do
         src = <<~EOD
-          X = 1
-          putd(X)
+          class A; def initialize(@x: Float); end; end
+          X = A.new(1)
+          putd(X.x)
         EOD
         expect(run(src)).to eq("1")
       end
