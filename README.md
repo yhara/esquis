@@ -2,6 +2,10 @@
 
 Esquis is a statically-typed programming language.
 
+## Status
+
+Pre-alpha. Everything may change.
+
 ## How to run
 
 Prerequisites:
@@ -28,3 +32,10 @@ This is a memo of 'how esquis behaves now', not 'how esquis should behave'.
   - putd(n: Float) -> Void : print n as decimal number(%d)
   - putf(n: Float) -> Void : print n as flonum (%f)
 
+## License
+
+MIT
+
+## Contact
+
+https://github.com/yhara/esquis
