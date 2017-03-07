@@ -171,6 +171,14 @@ describe Esquis do
         EOD
         expect(run(src)).to eq("A")
       end
+
+      it "void" do
+        src = <<-EOD
+          def foo -> Void; end
+          if true; foo(); else; foo(); end
+        EOD
+        expect{ run(src) }.not_to raise_error
+      end
     end
 
     it 'for' do

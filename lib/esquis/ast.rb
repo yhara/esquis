@@ -639,7 +639,7 @@ module Esquis
         ll << "  br label %EndIf#{i}"
 
         ll << "EndIf#{i}:"
-        unless @else_stmts.empty?
+        if @else_stmts.any? && @ty.llvm_type != "void"
           ll << "  #{r_if} = phi #{t} [#{then_r}, %ThenEnd#{i}], "+
                                      "[#{else_r}, %ElseEnd#{i}]"
         end
