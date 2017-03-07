@@ -75,23 +75,37 @@ describe Esquis do
     end
 
     it '%' do
-      src = "putf(1.1 % 2)"
-      expect(run(src)).to eq("1.100000")
-      src = "putf(2.1 % 2)"
-      expect(run(src)).to eq("0.100000")
-      src = "putf(-1.1 % 2)"
-      expect(run(src)).to eq("0.900000")
-      src = "putf(-2.1 % 2)"
-      expect(run(src)).to eq("1.900000")
+      src = <<~EOD
+        extern i32 putchar(i32)
+        putf( 2.1 % 2); putchar(10)
+        putf( 2.0 % 2); putchar(10)
+        putf( 1.1 % 2); putchar(10)
+        putf(-1.1 % 2); putchar(10)
+        putf(-2.0 % 2); putchar(10)
+        putf(-2.1 % 2); putchar(10)
+        putchar(10)
+        putf( 2.1 % -2); putchar(10)
+        putf( 2.0 % -2); putchar(10)
+        putf( 1.1 % -2); putchar(10)
+        putf(-1.1 % -2); putchar(10)
+        putf(-2.0 % -2); putchar(10)
+        putf(-2.1 % -2); putchar(10)
+      EOD
+      expect(run(src)).to eq(<<~EOD)
+        0.100000
+        0.000000
+        1.100000
+        0.900000
+        -0.000000
+        1.900000
 
-      src = "putf(1.1 % -2)"
-      expect(run(src)).to eq("-0.900000")
-      src = "putf(2.1 % -2)"
-      expect(run(src)).to eq("-1.900000")
-      src = "putf(-1.1 % -2)"
-      expect(run(src)).to eq("-1.100000")
-      src = "putf(-2.1 % -2)"
-      expect(run(src)).to eq("-0.100000")
+        -1.900000
+        0.000000
+        -0.900000
+        -1.100000
+        -0.000000
+        -0.100000
+      EOD
     end
 
     it '==' do
