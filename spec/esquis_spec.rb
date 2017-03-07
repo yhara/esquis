@@ -192,6 +192,15 @@ describe Esquis do
         EOD
         expect(run(src)).to eq("A")
       end
+
+      it 'reassign' do
+        src = <<-EOD
+          var a = 1
+          a = 2
+          putd(a)
+        EOD
+        expect(run(src)).to eq("2")
+      end
     end
 
     context 'ivar' do

@@ -17,6 +17,15 @@ module Esquis
     class TypeMismatch < StandardError; end
     class ArityMismatch < StandardError; end
 
+    class Lvar
+      # kind : :let, :var, :param, :special
+      def initialize(name, ty, kind)
+        @name, @ty, @kind = name, ty, kind
+      end
+      attr_reader :name, :ty, :kind
+      attr_accessor :reg
+    end
+
     class Node
       include Esquis::Type
       extend Props
@@ -344,8 +353,9 @@ module Esquis
         params.each{|x| newenv = x.add_type!(newenv)}
         @ty = TyMethod.new(name, params.map(&:ty), TyRaw[ret_type_name])
 
-        lvars = params.map{|x| [x.name, x.ty]}.to_h
-        newenv = newenv.add_local_vars(lvars)
+        newenv = newenv.add_local_vars(params.map{|x|
+          [x.name, Lvar.new(x.name, x.ty, :param)]
+        }.to_h)
         body_stmts.each{|x| newenv = x.add_type!(newenv)}
 
         last_ty = (body_stmts.empty? ? TyRaw["Void"] : body_stmts.last.ty)
@@ -410,7 +420,7 @@ module Esquis
       def add_type!(env, cls)
         raise if @ty
         @cls = cls
-        newenv = env.add_local_vars("self" => @cls.instance_ty)
+        newenv = env.add_local_vars("self" => Lvar.new("self", @cls.instance_ty, :special))
         super(newenv)
         return env
       end
@@ -520,7 +530,8 @@ module Esquis
         newenv = end_expr.add_type!(newenv)
         newenv = step_expr.add_type!(newenv)
 
-        newenv = newenv.add_local_vars(varname => TyRaw[var_type_name])
+        newenv = newenv.add_local_vars(
+          varname => Lvar.new(varname, TyRaw[var_type_name], :special))
         body_stmts.each{|x| newenv = x.add_type!(newenv)}
         return newenv
       end
@@ -830,25 +841,58 @@ module Esquis
     end
 
     class AssignLvar < Node
-      props :varname, :expr
+      props :varname, :expr, :isvar
 
       def add_type!(env)
         raise if @ty
 
         expr.add_type!(env)
-        @ty = expr.ty
-        return env.add_local_vars(varname => @ty)
+
+        if (@lvar = env.find_local_var(varname))
+          case @lvar.kind
+          when :let
+            raise "local variable #{varname} is not declared with `var`"
+          when :param
+            raise "cannot reassign to parameter #{varname}"
+          when :special
+            raise "cannot reassign to #{varname}"
+          when :var
+            unless Type.compatible?(expr.ty, @lvar.ty)
+              raise TypeMismatch, "local variable #{varname} is #{ty0}"+
+                " but got #{expr.ty}"
+            end
+            @reassign = true
+            @ty = expr.ty
+            return env
+          else raise
+          end
+        else
+          @reassign = false
+          @ty = (isvar ? NoType : expr.ty)
+          @expr_ty = expr.ty
+          @lvar = Lvar.new(varname, expr.ty, (isvar ? :var : :let))
+          return env.add_local_vars(varname => @lvar)
+        end
       end
 
       def to_ll_r
-        t = @ty.llvm_type
-        r = "%#{varname}"
         ll_expr, r_expr = *expr.to_ll_r
-        ll = [
-          *ll_expr,
-          "  #{r} = bitcast #{t} #{r_expr} to #{t}"
-        ]
-        return ll, r
+        ll = ll_expr
+        if @reassign
+          t = @ty.llvm_type
+          ll << "  store #{t} #{r_expr}, #{t}* #{@lvar.reg}"
+          return ll, r_expr
+        else
+          @lvar.reg = %Q{%"#{@lvar.name}"}
+          if isvar
+            ll << "  #{@lvar.reg} = alloca #{@expr_ty.llvm_type}"
+            return ll, :novalue
+          else
+            t = @ty.llvm_type
+            ll << "  #{@lvar.reg} = bitcast #{t} #{r_expr} to #{t}"
+            return ll, @lvar.reg
+          end
+        end
       end
     end
 
@@ -909,8 +953,8 @@ module Esquis
       def add_type!(env)
         raise if @ty
 
-        @ty = if (ty = env.find_local_var(name))
-                ty
+        @ty = if (@lvar = env.find_local_var(name))
+                @lvar.ty
               elsif (@ivar = env.find_instance_var(name))
                 @selfcls = env.selfcls
                 @ivar.ty
@@ -942,7 +986,19 @@ module Esquis
           ]
           return ll, r
         else
-          return [], "%#{name}"
+          case @lvar.kind 
+          when :let
+            return [], @lvar.reg
+          when :var
+            r = newreg
+            ll = [
+              "  #{r} = load #{@ty.llvm_type}, #{@ty.llvm_type}* #{@lvar.reg}"
+            ]
+            return ll, r
+          when :param, :special
+            return [], "%#{name}"
+          else raise
+          end
         end
       end
 
@@ -1004,7 +1060,7 @@ module Esquis
         return Env.new(toplevel_funcs, local_vars, constants, classes, selfcls)
       end
 
-      # @param lvars [{String => Type}]
+      # @param lvars [{String => Lvar}]
       def add_local_vars(lvars)
         return merge(local_vars: @local_vars.merge(lvars))
       end
